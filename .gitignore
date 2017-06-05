@@ -1,0 +1,8 @@
+*.o
+led.elf*
+*.i
+*.s
+!startup*.s
+GPATH
+GRTAGS
+GTAGS
