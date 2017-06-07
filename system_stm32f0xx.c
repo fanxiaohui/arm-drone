@@ -164,16 +164,17 @@ const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
   */
 void SystemInit(void)
 {
-  /* Enable external oscillator and wait until stable */
-  RCC->CR |= RCC_CR_HSEON;
-  while (!(RCC->CR & RCC_CR_HSERDY));
+    /* Enable external oscillator and wait until stable */
+    RCC->CR |= RCC_CR_HSEON;
+    while (!(RCC->CR & RCC_CR_HSERDY));
 
-  /* Enable peripheral clocks */
-  RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
-  RCC->APB1ENR |= RCC_APB1ENR_TIM14EN;
+    /* Enable peripheral clocks */
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+    RCC->APB1ENR |= RCC_APB1ENR_TIM14EN;
 
-  /* Stop timer counter when under debug. */
-  DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_TIM14_STOP;
+    /* Stop timer counter when under debug. */
+    RCC->APB2ENR |= RCC_APB2ENR_DBGMCUEN;
+    DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_TIM14_STOP;
 }
 
 /**

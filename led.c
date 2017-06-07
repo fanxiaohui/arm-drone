@@ -48,8 +48,8 @@ void main()
     sched_task_init(&timer1, &toggle_pin1, NULL);
     sched_task_init(&timer2, &toggle_pin2, NULL);
 
-    uint32_t start = sched_now() + 1000;
-    sched_task_schedule(&timer1, start, 50);
+    uint32_t start = 5100;
+    sched_task_schedule(&timer1, start, 400);
     // sched_task_schedule(&timer2, start, 20);
     
     while (1) {

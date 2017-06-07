@@ -5,7 +5,7 @@ LL_SRC=$(STM32_ROOT)/Drivers/STM32F0xx_HAL_Driver/Src
 
 AS=arm-as
 CC=arm-gcc
-CFLAGS=-specs=nano.specs -specs=nosys.specs -DSTM32F030x6 -DHAVE_ASSERT_FUNC -mthumb -mcpu=cortex-m0 -Os -ffunction-sections -fdata-sections -I$(STM32_ROOT)/Drivers/CMSIS/Include -I$(STM32_ROOT)/Drivers/CMSIS/Device/ST/STM32F0xx/Include -I$(LL_INC) -fverbose-asm -save-temps -g
+CFLAGS=-specs=nano.specs -specs=nosys.specs -DSTM32F030x6 -DHAVE_ASSERT_FUNC -mthumb -mcpu=cortex-m0 -ffunction-sections -fdata-sections -I$(STM32_ROOT)/Drivers/CMSIS/Include -I$(STM32_ROOT)/Drivers/CMSIS/Device/ST/STM32F0xx/Include -I$(LL_INC) -fverbose-asm -save-temps -finline-functions -ggdb3
 LDFLAGS=-Wl,-Tstm32f030f4.ld -Wl,--gc-sections
 VPATH=$(LL_SRC)
 
@@ -20,3 +20,6 @@ led.bin: led.elf
 
 upload: led.elf
 	openocd -f openocd.cfg -c "program led.elf verify reset exit"
+
+# dependencies
+scheduler.o: scheduler.c scheduler.h

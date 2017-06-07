@@ -3,9 +3,11 @@
 #include <stm32f0xx.h>
 
 // 16-bit timer counter, count up to maximum value
-#define TIMER_RELOAD	((uint16_t) ~0)
-// timer ticks for which we spin instead of scheduling another interrupt
-#define MAX_SPIN_DELAY	5
+// #define TIMER_RELOAD	((uint16_t) ~0)
+// 1ms
+#define TIMER_RELOAD	999
+// timer ticks for which we spin instead of scheduling another timer interrupt
+#define MAX_SPIN_DELAY	30
 
 /*----------------------------------------------------------------------
  * Scheduler public interface
@@ -121,8 +123,7 @@ static inline uint32_t _sched_now2(uint16_t *cnt)
     // the counter, so we may need to resample again in case of overflow
     *cnt = (uint16_t) TIM14->CNT;
     if (TIM14->SR & TIM_SR_UIF) {
-	// there was an overflow and scheduler.timer_offset may not have been
-	// updated yet
+	// there was an overflow and scheduler.timer_offset has not been updated yet
 	*cnt = (uint16_t) TIM14->CNT;
 	offset += TIMER_RELOAD + 1;
     }

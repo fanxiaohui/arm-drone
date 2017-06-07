@@ -67,15 +67,12 @@ void sched_task_init(task_t *task, TaskFn task_fn, void *client_data)
 void _sched_task_schedule(task_t *task)
 {
     assert(task->state != TASK_UNDEFINED);
-    
+
+    int update = 0;
     if (task->state == TASK_SCHEDULED) {
 	// task is waiting in scheduled queue, remove and re-schedule
-	int need_update = scheduler.scheduled_head == task;
+	int update = scheduler.scheduled_head == task;
 	sched_scheduled_list_remove(task);
-	if (need_update) {
-	    // this was the first task, we may need to update compare register
-	    sched_timer_update();
-	}
     }
     
     if (task->state == TASK_CANCELLED) {
@@ -92,8 +89,12 @@ void _sched_task_schedule(task_t *task)
 	    // task is ready to run immediately, no need to change compare registers
 	    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 	} else {
-	    sched_timer_update();
+	    update = 1;
 	}
+    }
+    if (update) {
+	// first task has changed, we may need to update compare register
+	sched_timer_update();
     }
 }
 
@@ -102,10 +103,10 @@ void _sched_task_cancel(task_t *task)
     if (task->state != TASK_SCHEDULED)
 	return;
 
-    int need_update = scheduler.scheduled_head == task;
+    int update = scheduler.scheduled_head == task;
     sched_scheduled_list_remove(task);
     sched_cancelled_list_add(task);
-    if (need_update) {
+    if (update) {
 	// this was the first task, we may need to update compare register
 	sched_timer_update();
     }
@@ -229,6 +230,7 @@ static inline int sched_task_due_soon(task_t *task, uint32_t now)
 
 void TIM14_IRQHandler()
 {
+    // note that the cost of this function can be around 30 microsecs
     __disable_irq();
 
     if (TIM14->SR & TIM_SR_UIF) {
@@ -236,6 +238,9 @@ void TIM14_IRQHandler()
 	// as well just before the overflow
 	TIM14->SR = ~TIM_SR_UIF;
 	scheduler.timer_offset += TIMER_RELOAD + 1;
+
+	GPIOA->ODR |= GPIO_ODR_2;
+	GPIOA->ODR &= ~GPIO_ODR_2;
     }
     
     if (TIM14->SR & TIM_SR_CC1IF) {
@@ -262,59 +267,50 @@ void PendSV_Handler()
 {
     __disable_irq();
 
-    // call all cancelled tasks first
-    while (scheduler.cancelled_head) {
-	state_t prev_state = scheduler.cancelled_head->state;
-	task_t *current = sched_cancelled_list_pop();
-	
-	__enable_irq();
-	(*current->task_fn)(current, prev_state, 0);
-	__disable_irq();
-    }
-
     // execute expired tasks
-    uint16_t cnt_deadline;  // will spin until counter reaches this value
-    uint32_t now = _sched_now2(&cnt_deadline);
+    uint32_t now = _sched_now();
 
-    while (scheduler.scheduled_head
-	   && sched_task_due_soon(scheduler.scheduled_head, now)) {
-	state_t prev_state = scheduler.scheduled_head->state;
+    while (scheduler.cancelled_head
+	   || (scheduler.scheduled_head
+	       && sched_task_due_soon(scheduler.scheduled_head, now))) {
+	state_t prev_state;
+	
+	// call all cancelled tasks first
+	while (scheduler.cancelled_head) {
+	    prev_state = scheduler.cancelled_head->state;
+	    task_t *current = sched_cancelled_list_pop();
+	
+	    __enable_irq();
+	    (*current->task_fn)(current, prev_state, 0);
+	    __disable_irq();
+	}
+
+	// call expired tasks
+	prev_state = scheduler.scheduled_head->state;
 	task_t *current = sched_scheduled_list_pop();
 	uint32_t expiry = current->deadline;
 	if (current->interval) {
 	    current->deadline += current->interval;
 	    // if we are behind schedule we may need to skip a few iterations
+	    now = _sched_now();
 	    if (current->deadline != now && sched_time_lte(current->deadline, now)) {
 		current->deadline += ((now - current->deadline - 1) / current->interval + 1)
 		    * current->interval;
 	    }
-	    _sched_task_schedule(current);
+	    sched_scheduled_list_add(current);
 	}
 
-#if 0
-	if (sched_time_lte(now, current->deadline)) {
-	    // we'll have to spin a bit, but not too long
-	    uint32_t delay = current->deadline - now;
-	    assert(delay <= 1 << 15);
-	    cnt_deadline += (uint16_t) delay;
-	}
-#endif
 	__enable_irq();
-#if 0
-	while (sched_counter_lt(TIM14->CNT, cnt_deadline)) {
-	    // empty
-	}
-#endif
 	(*current->task_fn)(current, prev_state, expiry);
-
 	__disable_irq();
 
-	now = _sched_now2(&cnt_deadline);
+	now = _sched_now();
     }
 
     // one of the re-schedules above may have triggered this IRQ again,
     // but we have processed all imminent tasks so no need
     SCB->ICSR &= ~SCB_ICSR_PENDSVSET_Msk;
+    sched_timer_update();
 
     __enable_irq();
 }
