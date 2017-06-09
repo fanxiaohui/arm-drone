@@ -36,7 +36,6 @@ void sched_init()
     // clear pending PendSV exception and set up priority
     SCB->ICSR &= ~SCB_ICSR_PENDSVSET_Msk;
     NVIC_SetPriority(PendSV_IRQn, 3);
-    // NVIC_EnableIRQ(PendSV_IRQn);
     
     // initialise timer peripheral
     TIM14->PSC = SystemCoreClock / 1000000 - 1;	 // 1MHz counter clock, 1 microsec period
@@ -231,7 +230,7 @@ static inline int sched_task_due_soon(task_t *task, uint32_t now)
 void TIM14_IRQHandler()
 {
     // note that the cost of this function can be around 30 microsecs
-    __disable_irq();
+    // no need to disable interrupts as it is running at highest priority
 
     if (TIM14->SR & TIM_SR_UIF) {
 	// clear update events, note that there may have been a compare event
@@ -256,8 +255,6 @@ void TIM14_IRQHandler()
 	    sched_timer_update();
 	}
     }
-
-    __enable_irq();
 }
 
 /**
@@ -265,7 +262,8 @@ void TIM14_IRQHandler()
  */
 void PendSV_Handler()
 {
-    __disable_irq();
+    lock_state_t lock_state;
+    lock_acquire(&lock_state);
 
     // execute expired tasks
     uint32_t now = _sched_now();
@@ -280,9 +278,9 @@ void PendSV_Handler()
 	    prev_state = scheduler.cancelled_head->state;
 	    task_t *current = sched_cancelled_list_pop();
 	
-	    __enable_irq();
+	    lock_release(&lock_state);
 	    (*current->task_fn)(current, prev_state, 0);
-	    __disable_irq();
+	    lock_acquire(&lock_state);
 	}
 
 	// call expired tasks
@@ -300,9 +298,9 @@ void PendSV_Handler()
 	    sched_scheduled_list_add(current);
 	}
 
-	__enable_irq();
+	lock_release(&lock_state);
 	(*current->task_fn)(current, prev_state, expiry);
-	__disable_irq();
+	lock_acquire(&lock_state);
 
 	now = _sched_now();
     }
@@ -312,5 +310,5 @@ void PendSV_Handler()
     SCB->ICSR &= ~SCB_ICSR_PENDSVSET_Msk;
     sched_timer_update();
 
-    __enable_irq();
+    lock_release(&lock_state);
 }

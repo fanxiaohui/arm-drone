@@ -2,6 +2,8 @@
 
 #include <stm32f0xx.h>
 
+#include "lock.h"
+
 // 16-bit timer counter, count up to maximum value
 // #define TIMER_RELOAD	((uint16_t) ~0)
 // 1ms
@@ -67,25 +69,35 @@ static inline uint32_t _sched_now2(uint16_t *cnt);
 static inline void sched_task_schedule(task_t *task, uint32_t deadline,
 				       uint32_t interval)
 {
-    __disable_irq();
+    lock_state_t lock_state;
+    lock_acquire(&lock_state);
+
     task->deadline = deadline;
     task->interval = interval;
     _sched_task_schedule(task);
-    __enable_irq();
+
+    lock_release(&lock_state);
 }
 
 static inline void sched_task_cancel(task_t *task)
 {
-    __disable_irq();
+    lock_state_t lock_state;
+    lock_acquire(&lock_state);
+
     _sched_task_cancel(task);
-    __enable_irq();
+
+    lock_release(&lock_state);
+
 }
 
 static inline uint32_t sched_now()
 {
-    __disable_irq();
+    lock_state_t lock_state;
+    lock_acquire(&lock_state);
+
     uint32_t now = _sched_now();
-    __enable_irq();
+
+    lock_release(&lock_state);
 
     return now;
 }
@@ -97,36 +109,16 @@ static inline uint32_t sched_now()
  */
 static inline uint32_t _sched_now()
 {
-    uint16_t cnt;
-    return _sched_now2(&cnt);
-}
-
-static inline uint32_t sched_now2(uint16_t *cnt)
-{
-    __disable_irq();
-    uint32_t now = _sched_now2(cnt);
-    __enable_irq();
-
-    return now;
-}
-
-/**
- * Returns current time in timer clocks since start and current counter value.
- *
- * Interrupts must be disabled when calling this function.
- */
-static inline uint32_t _sched_now2(uint16_t *cnt)
-{
     uint32_t offset = scheduler.timer_offset;
     
     // we don't know if a counter overflow happened or not when sampling
     // the counter, so we may need to resample again in case of overflow
-    *cnt = (uint16_t) TIM14->CNT;
+    uint16_t cnt = (uint16_t) TIM14->CNT;
     if (TIM14->SR & TIM_SR_UIF) {
 	// there was an overflow and scheduler.timer_offset has not been updated yet
-	*cnt = (uint16_t) TIM14->CNT;
+	cnt = (uint16_t) TIM14->CNT;
 	offset += TIMER_RELOAD + 1;
     }
 
-    return offset + *cnt;
+    return offset + cnt;
 }
