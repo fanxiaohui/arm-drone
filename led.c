@@ -6,6 +6,9 @@
 #include <assert.h>
 #include <string.h>
 
+static timer_t timer1, timer2;
+static task_t task1, task2;
+
 static inline void gpio_set_mode(GPIO_TypeDef *gpiox, uint32_t pin, uint32_t mode)
 {
     gpiox->MODER |= mode << 2 * pin;
@@ -26,9 +29,24 @@ static inline void gpio_set_af_mode(GPIO_TypeDef *gpiox, uint32_t pin, uint32_t 
     }
 }
 
-static void toggle_pin1(timer_t *task, state_t state, uint32_t expiry)
+static void set_pin1(timer_t *task, state_t state, uint32_t expiry)
 {
-    GPIOA->ODR ^= GPIO_ODR_1;
+    GPIOA->ODR |= GPIO_ODR_1;
+}
+
+static void unset_pin1(timer_t *task, state_t state, uint32_t expiry)
+{
+    GPIOA->ODR &= ~GPIO_ODR_1;
+}
+
+static void set_pin1_task(task_t *task)
+{
+    GPIOA->ODR |= GPIO_ODR_1;
+}
+
+static void unset_pin1_task(task_t *task)
+{
+    GPIOA->ODR &= ~GPIO_ODR_1;
 }
 
 static void toggle_pin2(timer_t *task, state_t state, uint32_t expiry)
@@ -38,20 +56,23 @@ static void toggle_pin2(timer_t *task, state_t state, uint32_t expiry)
 
 void main()
 {
-    static timer_t timer1, timer2;
-
     gpio_set_mode(GPIOA, 1, LL_GPIO_MODE_OUTPUT);
     gpio_set_mode(GPIOA, 2, LL_GPIO_MODE_OUTPUT);
     // gpio_set_mode(GPIOA, 3, LL_GPIO_MODE_OUTPUT);
     
     sched_init();
-    sched_task_init(&timer1, &toggle_pin1, NULL);
-    sched_task_init(&timer2, &toggle_pin2, NULL);
+    sched_timer_init(&timer1, &set_pin1, NULL);
+    sched_timer_init(&timer2, &unset_pin1, NULL);
+    sched_task_init(&task1, &set_pin1_task, NULL);
+    sched_task_init(&task2, &unset_pin1_task, NULL);
 
     uint32_t start = 5350;
-    sched_task_schedule(&timer1, start, 300);
-    // sched_task_schedule(&timer2, start, 20);
-    
+    sched_timer_schedule(&timer1, 5100, 600);
+    sched_timer_schedule(&timer2, 5300, 600);
+   
+    //sched_task_pending(&task1);
+    //sched_task_pending(&task2);
+
     while (1) {
 	// __NOP();
 	__WFI();

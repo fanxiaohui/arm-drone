@@ -16,9 +16,9 @@ scheduler_t scheduler;
 
 INLINE void sched_timer_update();
 
-INLINE void sched_scheduled_list_add(timer_t *task);
-INLINE void sched_scheduled_list_remove(timer_t *task);
-INLINE timer_t *sched_scheduled_list_pop();
+INLINE void sched_timer_list_add(timer_t *task);
+INLINE void sched_timer_list_remove(timer_t *task);
+INLINE timer_t *sched_timer_list_pop();
 
 INLINE void sched_cancelled_list_add(timer_t *task);
 INLINE void sched_cancelled_list_remove(timer_t *task);
@@ -27,16 +27,19 @@ INLINE timer_t *sched_cancelled_list_pop();
 INLINE void _sched_list_remove(timer_t * volatile*head, timer_t *task);
 INLINE timer_t *_sched_list_pop(timer_t * volatile*head);
 
+INLINE void sched_task_list_add(task_t *task);
+INLINE task_t *sched_task_list_pop();
+
 INLINE uint32_t sched_time_add(uint32_t t1, uint32_t t2);
 INLINE int sched_time_lte(uint32_t t1, uint32_t t2);
-INLINE int sched_task_due_soon(timer_t *task, uint32_t now);
+INLINE int sched_timer_due_soon(timer_t *task, uint32_t now);
 
 void sched_init()
 {
     memset((char *) &scheduler, 0, sizeof(scheduler));
 
     // clear pending PendSV exception and set up priority
-    SCB->ICSR &= ~SCB_ICSR_PENDSVSET_Msk;
+    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVSET_Msk) | SCB_ICSR_PENDSVCLR_Msk;
     NVIC_SetPriority(PendSV_IRQn, 3);
     
     // initialise timer peripheral
@@ -56,24 +59,24 @@ void sched_init()
     TIM14->CR1 |= TIM_CR1_CEN;
 }
 
-void sched_task_init(timer_t *task, TaskFn task_fn, void *client_data)
+void sched_timer_init(timer_t *task, TimerFn timer_fn, void *client_data)
 {
     memset((char *) task, 0, sizeof(*task));
 
-    task->task_fn = task_fn;
+    task->timer_fn = timer_fn;
     task->client_data = client_data;
     task->state = TASK_INITIALISED;
 }
 
-void _sched_task_schedule(timer_t *task)
+void _sched_timer_schedule(timer_t *task)
 {
     assert(task->state != TASK_UNDEFINED);
 
     int update = 0;
     if (task->state == TASK_SCHEDULED) {
 	// task is waiting in scheduled queue, remove and re-schedule
-	int update = scheduler.scheduled_head == task;
-	sched_scheduled_list_remove(task);
+	int update = scheduler.timer_head == task;
+	sched_timer_list_remove(task);
     }
     
     if (task->state == TASK_CANCELLED) {
@@ -81,14 +84,14 @@ void _sched_task_schedule(timer_t *task)
 	sched_cancelled_list_remove(task);
     }
 
-    sched_scheduled_list_add(task);
+    sched_timer_list_add(task);
 
-    if (scheduler.scheduled_head == task) {
+    if (scheduler.timer_head == task) {
 	// the earliest task has changed, check if we need to start
 	// an execution or need to update the compare register
-	if (sched_task_due_soon(task, _sched_now())) {
+	if (sched_timer_due_soon(task, _sched_now())) {
 	    // task is ready to run immediately, no need to change compare registers
-	    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+	    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVCLR_Msk) | SCB_ICSR_PENDSVSET_Msk;
 	} else {
 	    update = 1;
 	}
@@ -99,18 +102,38 @@ void _sched_task_schedule(timer_t *task)
     }
 }
 
-void _sched_task_cancel(timer_t *task)
+void _sched_timer_cancel(timer_t *task)
 {
     if (task->state != TASK_SCHEDULED)
 	return;
 
-    int update = scheduler.scheduled_head == task;
-    sched_scheduled_list_remove(task);
+    int update = scheduler.timer_head == task;
+    sched_timer_list_remove(task);
     sched_cancelled_list_add(task);
     if (update) {
 	// this was the first task, we may need to update compare register
 	sched_timer_update();
     }
+}
+
+void sched_task_init(task_t *task, TaskFn task_fn, void *client_data)
+{
+    memset((char *) task, 0, sizeof(*task));
+
+    task->task_fn = task_fn;
+    task->client_data = client_data;
+    task->state = TASK_INITIALISED;
+}
+
+void _sched_task_pending(task_t *task)
+{
+    assert(task->state != TASK_UNDEFINED);
+
+    if (task->state == TASK_SCHEDULED)
+	return;
+
+    sched_task_list_add(task);
+    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVCLR_Msk) | SCB_ICSR_PENDSVSET_Msk;
 }
 
 /**
@@ -121,8 +144,8 @@ void _sched_task_cancel(timer_t *task)
 INLINE void sched_timer_update()
 {
     uint32_t next_cmp = 0;
-    if (scheduler.scheduled_head) {
-	next_cmp = scheduler.scheduled_head->deadline - scheduler.timer_offset;
+    if (scheduler.timer_head) {
+	next_cmp = scheduler.timer_head->deadline - scheduler.timer_offset;
 	if (next_cmp > TIMER_RELOAD) {
 	    next_cmp = 0;
 	}
@@ -132,11 +155,11 @@ INLINE void sched_timer_update()
     TIM14->SR = ~TIM_SR_CC1IF;
 }
 
-INLINE void sched_scheduled_list_add(timer_t *task)
+INLINE void sched_timer_list_add(timer_t *task)
 {
     assert(task->state == TASK_INITIALISED);
 
-    timer_t * volatile*prev = &scheduler.scheduled_head;
+    timer_t * volatile*prev = &scheduler.timer_head;
     while (*prev && sched_time_lte((*prev)->deadline, task->deadline)) {
 	prev = &(*prev)->next;
     }
@@ -147,14 +170,14 @@ INLINE void sched_scheduled_list_add(timer_t *task)
     task->state = TASK_SCHEDULED;
 }
 
-INLINE void sched_scheduled_list_remove(timer_t *task)
+INLINE void sched_timer_list_remove(timer_t *task)
 {
-    _sched_list_remove(&scheduler.scheduled_head, task);
+    _sched_list_remove(&scheduler.timer_head, task);
 }
 
-INLINE timer_t *sched_scheduled_list_pop()
+INLINE timer_t *sched_timer_list_pop()
 {
-    return _sched_list_pop(&scheduler.scheduled_head);
+    return _sched_list_pop(&scheduler.timer_head);
 }
 
 INLINE void sched_cancelled_list_add(timer_t *task)
@@ -206,6 +229,42 @@ INLINE timer_t *_sched_list_pop(timer_t * volatile*head)
     return task;
 }
 
+INLINE void sched_task_list_add(task_t *task)
+{
+    // add the task to the end of the circular task list
+    task_t *tail = scheduler.task_tail;
+    if (!tail) {
+	// task will be the only item in the list, link it to itself
+	task->next = task;
+    } else {
+	task->next = tail->next;
+	tail->next = task;
+    }
+    scheduler.task_tail = task;
+    task->state = TASK_SCHEDULED;
+}
+
+INLINE task_t *sched_task_list_pop()
+{
+    // remove the front of the circular task list, which is task_tail->next
+    task_t *task = scheduler.task_tail;
+    if (!task) {
+	return NULL;
+    }
+    if (task == task->next) {
+	// there was only one task in the list
+	scheduler.task_tail = NULL;
+    } else {
+	// remove the next task after the tail
+	task = task->next;
+	scheduler.task_tail->next = task->next;
+    }
+    task->next = NULL;
+    task->state = TASK_INITIALISED;
+
+    return task;
+}
+
 INLINE uint32_t sched_time_add(uint32_t t1, uint32_t t2)
 {
     // it is ok to overflow
@@ -218,7 +277,7 @@ INLINE int sched_time_lte(uint32_t t1, uint32_t t2)
     return t2 - t1 <= 1u << 31;
 }
 
-INLINE int sched_task_due_soon(timer_t *task, uint32_t now)
+INLINE int sched_timer_due_soon(timer_t *task, uint32_t now)
 {
     return sched_time_lte(task->deadline, sched_time_add(now, MIN_TIMER_DELAY));
 }
@@ -243,10 +302,10 @@ void TIM14_IRQHandler()
 	TIM14->CCR1 = 0;
 	TIM14->SR = ~TIM_SR_CC1IF;
     
-	if (scheduler.scheduled_head
-	    && sched_task_due_soon(scheduler.scheduled_head, _sched_now())) {
+	if (scheduler.timer_head
+	    && sched_timer_due_soon(scheduler.timer_head, _sched_now())) {
 	    // a task is ready to run immediately, no need to set up compare register
-	    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+	    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVCLR_Msk) | SCB_ICSR_PENDSVSET_Msk;
 	} else {
 	    sched_timer_update();
 	}
@@ -263,47 +322,57 @@ void PendSV_Handler()
 
     // execute expired tasks
     uint32_t now = _sched_now();
+    while (scheduler.task_tail
+	   || scheduler.cancelled_head
+	   || (scheduler.timer_head
+	       && sched_timer_due_soon(scheduler.timer_head, now))) {
 
-    while (scheduler.cancelled_head
-	   || (scheduler.scheduled_head
-	       && sched_task_due_soon(scheduler.scheduled_head, now))) {
+	// call all immediate tasks
+	while (scheduler.task_tail) {
+	    task_t *current = sched_task_list_pop();
+	    exit_crit();
+	    (*current->task_fn)(current);
+	    enter_crit();
+	}
+
+	// call all cancelled tasks
 	state_t prev_state;
-	
-	// call all cancelled tasks first
 	while (scheduler.cancelled_head) {
 	    prev_state = scheduler.cancelled_head->state;
 	    timer_t *current = sched_cancelled_list_pop();
 	
 	    exit_crit();
-	    (*current->task_fn)(current, prev_state, 0);
+	    (*current->timer_fn)(current, prev_state, 0);
 	    enter_crit();
 	}
 
-	// call expired tasks
-	prev_state = scheduler.scheduled_head->state;
-	timer_t *current = sched_scheduled_list_pop();
-	uint32_t expiry = current->deadline;
-	if (current->interval) {
-	    current->deadline += current->interval;
-	    // if we are behind schedule we may need to skip a few iterations
-	    now = _sched_now();
-	    if (current->deadline != now && sched_time_lte(current->deadline, now)) {
-		current->deadline += ((now - current->deadline - 1) / current->interval + 1)
-		    * current->interval;
+	// call one expired task, if any, it may cancel/schedule other tasks
+	if (scheduler.timer_head
+	    && sched_timer_due_soon(scheduler.timer_head, now)) {
+	    prev_state = scheduler.timer_head->state;
+	    timer_t *current = sched_timer_list_pop();
+
+	    uint32_t expiry = current->deadline;
+	    if (current->interval) {
+		current->deadline += current->interval;
+		// if we are behind schedule we may need to skip a few iterations
+		if (current->deadline != now && sched_time_lte(current->deadline, now)) {
+		    current->deadline += ((now - current->deadline - 1) / current->interval + 1)
+			* current->interval;
+		}
+		sched_timer_list_add(current);
 	    }
-	    sched_scheduled_list_add(current);
+
+	    exit_crit();
+	    (*current->timer_fn)(current, prev_state, expiry);
+	    enter_crit();
 	}
-
-	exit_crit();
-	(*current->task_fn)(current, prev_state, expiry);
-	enter_crit();
-
 	now = _sched_now();
     }
 
     // one of the re-schedules above may have triggered this IRQ again,
     // but we have processed all imminent tasks so no need
-    SCB->ICSR &= ~SCB_ICSR_PENDSVSET_Msk;
+    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVSET_Msk) | SCB_ICSR_PENDSVCLR_Msk;
     sched_timer_update();
 
     exit_crit();
