@@ -11,23 +11,25 @@
 
 scheduler_t scheduler;
 
-static inline void sched_timer_update();
+// timer ticks for which we don't schedule a timer, but execute immediately
+#define MIN_TIMER_DELAY	20
 
-static inline void sched_scheduled_list_add(task_t *task);
-static inline void sched_scheduled_list_remove(task_t *task);
-static inline task_t *sched_scheduled_list_pop();
+INLINE void sched_timer_update();
 
-static inline void sched_cancelled_list_add(task_t *task);
-static inline void sched_cancelled_list_remove(task_t *task);
-static inline task_t *sched_cancelled_list_pop();
+INLINE void sched_scheduled_list_add(task_t *task);
+INLINE void sched_scheduled_list_remove(task_t *task);
+INLINE task_t *sched_scheduled_list_pop();
 
-static inline void _sched_list_remove(task_t * volatile*head, task_t *task);
-static inline task_t *_sched_list_pop(task_t * volatile*head);
+INLINE void sched_cancelled_list_add(task_t *task);
+INLINE void sched_cancelled_list_remove(task_t *task);
+INLINE task_t *sched_cancelled_list_pop();
 
-static inline uint32_t sched_time_add(uint32_t t1, uint32_t t2);
-static inline int sched_counter_lt(uint16_t t1, uint16_t t2);
-static inline int sched_time_lte(uint32_t t1, uint32_t t2);
-static inline int sched_task_due_soon(task_t *task, uint32_t now);
+INLINE void _sched_list_remove(task_t * volatile*head, task_t *task);
+INLINE task_t *_sched_list_pop(task_t * volatile*head);
+
+INLINE uint32_t sched_time_add(uint32_t t1, uint32_t t2);
+INLINE int sched_time_lte(uint32_t t1, uint32_t t2);
+INLINE int sched_task_due_soon(task_t *task, uint32_t now);
 
 void sched_init()
 {
@@ -116,7 +118,7 @@ void _sched_task_cancel(task_t *task)
  *
  * Interrupts must be disabled when calling this function.
  */
-static inline void sched_timer_update()
+INLINE void sched_timer_update()
 {
     uint32_t next_cmp = 0;
     if (scheduler.scheduled_head) {
@@ -130,7 +132,7 @@ static inline void sched_timer_update()
     TIM14->SR = ~TIM_SR_CC1IF;
 }
 
-static inline void sched_scheduled_list_add(task_t *task)
+INLINE void sched_scheduled_list_add(task_t *task)
 {
     assert(task->state == TASK_INITIALISED);
 
@@ -145,17 +147,17 @@ static inline void sched_scheduled_list_add(task_t *task)
     task->state = TASK_SCHEDULED;
 }
 
-static inline void sched_scheduled_list_remove(task_t *task)
+INLINE void sched_scheduled_list_remove(task_t *task)
 {
     _sched_list_remove(&scheduler.scheduled_head, task);
 }
 
-static inline task_t *sched_scheduled_list_pop()
+INLINE task_t *sched_scheduled_list_pop()
 {
     return _sched_list_pop(&scheduler.scheduled_head);
 }
 
-static inline void sched_cancelled_list_add(task_t *task)
+INLINE void sched_cancelled_list_add(task_t *task)
 {
     assert(task->state == TASK_INITIALISED);
 
@@ -165,17 +167,17 @@ static inline void sched_cancelled_list_add(task_t *task)
     task->state = TASK_CANCELLED;
 }
 
-static inline void sched_cancelled_list_remove(task_t *task)
+INLINE void sched_cancelled_list_remove(task_t *task)
 {
     _sched_list_remove(&scheduler.cancelled_head, task);
 }
 
-static inline task_t *sched_cancelled_list_pop()
+INLINE task_t *sched_cancelled_list_pop()
 {
     return _sched_list_pop(&scheduler.cancelled_head);
 }
 
-static inline void _sched_list_remove(task_t * volatile*head, task_t *task)
+INLINE void _sched_list_remove(task_t * volatile*head, task_t *task)
 {
     task_t * volatile*prev = head;
     while (*prev && *prev != task) {
@@ -190,7 +192,7 @@ static inline void _sched_list_remove(task_t * volatile*head, task_t *task)
     task->state = TASK_INITIALISED;
 }
 
-static inline task_t *_sched_list_pop(task_t * volatile*head)
+INLINE task_t *_sched_list_pop(task_t * volatile*head)
 {
     task_t *task = *head;
     if (!task) {
@@ -204,34 +206,28 @@ static inline task_t *_sched_list_pop(task_t * volatile*head)
     return task;
 }
 
-static inline uint32_t sched_time_add(uint32_t t1, uint32_t t2)
+INLINE uint32_t sched_time_add(uint32_t t1, uint32_t t2)
 {
     // it is ok to overflow
     return t1 + t2;
 }
 
-static inline int sched_counter_lt(uint16_t t1, uint16_t t2)
-{
-    // note that t1 and t2 wraps around after 2^16 - 1
-    return t1 != t2 && (uint16_t) (t2 - t1) <= 1u << 15;
-}
-
-static inline int sched_time_lte(uint32_t t1, uint32_t t2)
+INLINE int sched_time_lte(uint32_t t1, uint32_t t2)
 {
     // note that t1 and t2 wraps around after 2^32 - 1
     return t2 - t1 <= 1u << 31;
 }
 
-static inline int sched_task_due_soon(task_t *task, uint32_t now)
+INLINE int sched_task_due_soon(task_t *task, uint32_t now)
 {
-    return sched_time_lte(task->deadline, sched_time_add(now, MAX_SPIN_DELAY));
+    return sched_time_lte(task->deadline, sched_time_add(now, MIN_TIMER_DELAY));
 }
 
 void TIM14_IRQHandler()
 {
     // note that the cost of this function can be around 30 microsecs
-    // no need to disable interrupts as it is running at highest priority
-
+    enter_crit();
+    
     if (TIM14->SR & TIM_SR_UIF) {
 	// clear update events, note that there may have been a compare event
 	// as well just before the overflow
@@ -255,6 +251,7 @@ void TIM14_IRQHandler()
 	    sched_timer_update();
 	}
     }
+    exit_crit();
 }
 
 /**
@@ -262,8 +259,7 @@ void TIM14_IRQHandler()
  */
 void PendSV_Handler()
 {
-    lock_state_t lock_state;
-    lock_acquire(&lock_state);
+    enter_crit();
 
     // execute expired tasks
     uint32_t now = _sched_now();
@@ -278,9 +274,9 @@ void PendSV_Handler()
 	    prev_state = scheduler.cancelled_head->state;
 	    task_t *current = sched_cancelled_list_pop();
 	
-	    lock_release(&lock_state);
+	    exit_crit();
 	    (*current->task_fn)(current, prev_state, 0);
-	    lock_acquire(&lock_state);
+	    enter_crit();
 	}
 
 	// call expired tasks
@@ -298,9 +294,9 @@ void PendSV_Handler()
 	    sched_scheduled_list_add(current);
 	}
 
-	lock_release(&lock_state);
+	exit_crit();
 	(*current->task_fn)(current, prev_state, expiry);
-	lock_acquire(&lock_state);
+	enter_crit();
 
 	now = _sched_now();
     }
@@ -310,5 +306,5 @@ void PendSV_Handler()
     SCB->ICSR &= ~SCB_ICSR_PENDSVSET_Msk;
     sched_timer_update();
 
-    lock_release(&lock_state);
+    exit_crit();
 }

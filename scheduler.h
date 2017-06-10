@@ -2,14 +2,12 @@
 
 #include <stm32f0xx.h>
 
-#include "lock.h"
+#include "utils.h"
 
 // 16-bit timer counter, count up to maximum value
 // #define TIMER_RELOAD	((uint16_t) ~0)
 // 1ms
 #define TIMER_RELOAD	999
-// timer ticks for which we spin instead of scheduling another timer interrupt
-#define MAX_SPIN_DELAY	30
 
 /*----------------------------------------------------------------------
  * Scheduler public interface
@@ -52,52 +50,49 @@ extern scheduler_t scheduler;
 
 extern void sched_init();
 extern void sched_task_init(task_t *task, TaskFn task_fn, void *client_data);
-static inline void sched_task_schedule(task_t *task, uint32_t deadline, uint32_t interval);
-static inline void sched_task_cancel(task_t *task);
+INLINE void sched_task_schedule(task_t *task, uint32_t deadline, uint32_t interval);
+INLINE void sched_task_cancel(task_t *task);
 extern void _sched_task_schedule(task_t *task);
 extern void _sched_task_cancel(task_t *task);
 
-static inline uint32_t sched_now();
-static inline uint32_t _sched_now();
-static inline uint32_t sched_now2(uint16_t *cnt);
-static inline uint32_t _sched_now2(uint16_t *cnt);
+INLINE uint32_t sched_now();
+INLINE uint32_t _sched_now();
 
 /*----------------------------------------------------------------------
  * Scheduler inline implementation
  *----------------------------------------------------------------------*/
 
-static inline void sched_task_schedule(task_t *task, uint32_t deadline,
+INLINE void sched_task_schedule(task_t *task, uint32_t deadline,
 				       uint32_t interval)
 {
-    lock_state_t lock_state;
-    lock_acquire(&lock_state);
+    crit_state_t crit_state;
+    enter_crit_rec(&crit_state);
 
     task->deadline = deadline;
     task->interval = interval;
     _sched_task_schedule(task);
 
-    lock_release(&lock_state);
+    exit_crit_rec(&crit_state);
 }
 
-static inline void sched_task_cancel(task_t *task)
+INLINE void sched_task_cancel(task_t *task)
 {
-    lock_state_t lock_state;
-    lock_acquire(&lock_state);
+    crit_state_t crit_state;
+    enter_crit_rec(&crit_state);
 
     _sched_task_cancel(task);
 
-    lock_release(&lock_state);
-
+    exit_crit_rec(&crit_state);
 }
 
-static inline uint32_t sched_now()
+INLINE uint32_t sched_now()
 {
-    lock_state_t lock_state;
-    lock_acquire(&lock_state);
+    crit_state_t crit_state;
+    enter_crit_rec(&crit_state);
 
     uint32_t now = _sched_now();
 
-    lock_release(&lock_state);
+    exit_crit_rec(&crit_state);
 
     return now;
 }
@@ -107,7 +102,7 @@ static inline uint32_t sched_now()
  *
  * Interrupts must be disabled when calling this function.
  */
-static inline uint32_t _sched_now()
+INLINE uint32_t _sched_now()
 {
     uint32_t offset = scheduler.timer_offset;
     

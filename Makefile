@@ -22,4 +22,4 @@ upload: led.elf
 	openocd -f openocd.cfg -c "program led.elf verify reset exit"
 
 # dependencies
-scheduler.o: scheduler.c scheduler.h lock.h
+scheduler.o: scheduler.c scheduler.h utils.h
