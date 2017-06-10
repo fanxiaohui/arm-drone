@@ -16,20 +16,20 @@ scheduler_t scheduler;
 
 INLINE void sched_timer_update();
 
-INLINE void sched_scheduled_list_add(task_t *task);
-INLINE void sched_scheduled_list_remove(task_t *task);
-INLINE task_t *sched_scheduled_list_pop();
+INLINE void sched_scheduled_list_add(timer_t *task);
+INLINE void sched_scheduled_list_remove(timer_t *task);
+INLINE timer_t *sched_scheduled_list_pop();
 
-INLINE void sched_cancelled_list_add(task_t *task);
-INLINE void sched_cancelled_list_remove(task_t *task);
-INLINE task_t *sched_cancelled_list_pop();
+INLINE void sched_cancelled_list_add(timer_t *task);
+INLINE void sched_cancelled_list_remove(timer_t *task);
+INLINE timer_t *sched_cancelled_list_pop();
 
-INLINE void _sched_list_remove(task_t * volatile*head, task_t *task);
-INLINE task_t *_sched_list_pop(task_t * volatile*head);
+INLINE void _sched_list_remove(timer_t * volatile*head, timer_t *task);
+INLINE timer_t *_sched_list_pop(timer_t * volatile*head);
 
 INLINE uint32_t sched_time_add(uint32_t t1, uint32_t t2);
 INLINE int sched_time_lte(uint32_t t1, uint32_t t2);
-INLINE int sched_task_due_soon(task_t *task, uint32_t now);
+INLINE int sched_task_due_soon(timer_t *task, uint32_t now);
 
 void sched_init()
 {
@@ -56,7 +56,7 @@ void sched_init()
     TIM14->CR1 |= TIM_CR1_CEN;
 }
 
-void sched_task_init(task_t *task, TaskFn task_fn, void *client_data)
+void sched_task_init(timer_t *task, TaskFn task_fn, void *client_data)
 {
     memset((char *) task, 0, sizeof(*task));
 
@@ -65,7 +65,7 @@ void sched_task_init(task_t *task, TaskFn task_fn, void *client_data)
     task->state = TASK_INITIALISED;
 }
 
-void _sched_task_schedule(task_t *task)
+void _sched_task_schedule(timer_t *task)
 {
     assert(task->state != TASK_UNDEFINED);
 
@@ -99,7 +99,7 @@ void _sched_task_schedule(task_t *task)
     }
 }
 
-void _sched_task_cancel(task_t *task)
+void _sched_task_cancel(timer_t *task)
 {
     if (task->state != TASK_SCHEDULED)
 	return;
@@ -132,11 +132,11 @@ INLINE void sched_timer_update()
     TIM14->SR = ~TIM_SR_CC1IF;
 }
 
-INLINE void sched_scheduled_list_add(task_t *task)
+INLINE void sched_scheduled_list_add(timer_t *task)
 {
     assert(task->state == TASK_INITIALISED);
 
-    task_t * volatile*prev = &scheduler.scheduled_head;
+    timer_t * volatile*prev = &scheduler.scheduled_head;
     while (*prev && sched_time_lte((*prev)->deadline, task->deadline)) {
 	prev = &(*prev)->next;
     }
@@ -147,17 +147,17 @@ INLINE void sched_scheduled_list_add(task_t *task)
     task->state = TASK_SCHEDULED;
 }
 
-INLINE void sched_scheduled_list_remove(task_t *task)
+INLINE void sched_scheduled_list_remove(timer_t *task)
 {
     _sched_list_remove(&scheduler.scheduled_head, task);
 }
 
-INLINE task_t *sched_scheduled_list_pop()
+INLINE timer_t *sched_scheduled_list_pop()
 {
     return _sched_list_pop(&scheduler.scheduled_head);
 }
 
-INLINE void sched_cancelled_list_add(task_t *task)
+INLINE void sched_cancelled_list_add(timer_t *task)
 {
     assert(task->state == TASK_INITIALISED);
 
@@ -167,19 +167,19 @@ INLINE void sched_cancelled_list_add(task_t *task)
     task->state = TASK_CANCELLED;
 }
 
-INLINE void sched_cancelled_list_remove(task_t *task)
+INLINE void sched_cancelled_list_remove(timer_t *task)
 {
     _sched_list_remove(&scheduler.cancelled_head, task);
 }
 
-INLINE task_t *sched_cancelled_list_pop()
+INLINE timer_t *sched_cancelled_list_pop()
 {
     return _sched_list_pop(&scheduler.cancelled_head);
 }
 
-INLINE void _sched_list_remove(task_t * volatile*head, task_t *task)
+INLINE void _sched_list_remove(timer_t * volatile*head, timer_t *task)
 {
-    task_t * volatile*prev = head;
+    timer_t * volatile*prev = head;
     while (*prev && *prev != task) {
 	prev = &(*prev)->next;
     }
@@ -192,9 +192,9 @@ INLINE void _sched_list_remove(task_t * volatile*head, task_t *task)
     task->state = TASK_INITIALISED;
 }
 
-INLINE task_t *_sched_list_pop(task_t * volatile*head)
+INLINE timer_t *_sched_list_pop(timer_t * volatile*head)
 {
-    task_t *task = *head;
+    timer_t *task = *head;
     if (!task) {
 	return NULL;
     }
@@ -218,7 +218,7 @@ INLINE int sched_time_lte(uint32_t t1, uint32_t t2)
     return t2 - t1 <= 1u << 31;
 }
 
-INLINE int sched_task_due_soon(task_t *task, uint32_t now)
+INLINE int sched_task_due_soon(timer_t *task, uint32_t now)
 {
     return sched_time_lte(task->deadline, sched_time_add(now, MIN_TIMER_DELAY));
 }
@@ -272,7 +272,7 @@ void PendSV_Handler()
 	// call all cancelled tasks first
 	while (scheduler.cancelled_head) {
 	    prev_state = scheduler.cancelled_head->state;
-	    task_t *current = sched_cancelled_list_pop();
+	    timer_t *current = sched_cancelled_list_pop();
 	
 	    exit_crit();
 	    (*current->task_fn)(current, prev_state, 0);
@@ -281,7 +281,7 @@ void PendSV_Handler()
 
 	// call expired tasks
 	prev_state = scheduler.scheduled_head->state;
-	task_t *current = sched_scheduled_list_pop();
+	timer_t *current = sched_scheduled_list_pop();
 	uint32_t expiry = current->deadline;
 	if (current->interval) {
 	    current->deadline += current->interval;

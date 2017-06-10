@@ -26,19 +26,19 @@ static inline void gpio_set_af_mode(GPIO_TypeDef *gpiox, uint32_t pin, uint32_t 
     }
 }
 
-static void toggle_pin1(task_t *task, state_t state, uint32_t expiry)
+static void toggle_pin1(timer_t *task, state_t state, uint32_t expiry)
 {
     GPIOA->ODR ^= GPIO_ODR_1;
 }
 
-static void toggle_pin2(task_t *task, state_t state, uint32_t expiry)
+static void toggle_pin2(timer_t *task, state_t state, uint32_t expiry)
 {
     GPIOA->ODR ^= GPIO_ODR_2;
 }
 
 void main()
 {
-    static task_t timer1, timer2;
+    static timer_t timer1, timer2;
 
     gpio_set_mode(GPIOA, 1, LL_GPIO_MODE_OUTPUT);
     gpio_set_mode(GPIOA, 2, LL_GPIO_MODE_OUTPUT);
@@ -48,8 +48,8 @@ void main()
     sched_task_init(&timer1, &toggle_pin1, NULL);
     sched_task_init(&timer2, &toggle_pin2, NULL);
 
-    uint32_t start = 5100;
-    sched_task_schedule(&timer1, start, 400);
+    uint32_t start = 5350;
+    sched_task_schedule(&timer1, start, 300);
     // sched_task_schedule(&timer2, start, 20);
     
     while (1) {
