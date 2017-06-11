@@ -174,6 +174,7 @@ void SystemInit(void)
 
     /* Stop timer counter when under debug. */
     RCC->APB2ENR |= RCC_APB2ENR_DBGMCUEN;
+    __DSB();
     DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_TIM14_STOP;
 }
 
