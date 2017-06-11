@@ -4,6 +4,9 @@
 
 #include "utils.h"
 
+#define SCHED_TASK_PRIORITY		3
+#define SCHED_TIMER_IRQ_PRIORITY	0
+
 // 16-bit timer counter, count up to maximum value
 // #define TIMER_RELOAD	((uint16_t) ~0)
 // 1ms

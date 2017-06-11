@@ -39,8 +39,8 @@ void sched_init()
     memset((char *) &scheduler, 0, sizeof(scheduler));
 
     // clear pending PendSV exception and set up priority
-    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVSET_Msk) | SCB_ICSR_PENDSVCLR_Msk;
-    NVIC_SetPriority(PendSV_IRQn, 3);
+    SCB->ICSR = SCB_ICSR_PENDSVCLR_Msk;
+    NVIC_SetPriority(PendSV_IRQn, SCHED_TASK_PRIORITY);
     
     // initialise timer peripheral
     TIM14->PSC = SystemCoreClock / 1000000 - 1;	 // 1MHz counter clock, 1 microsec period
@@ -53,6 +53,7 @@ void sched_init()
 
     // enable compare and update interrupts
     TIM14->DIER |= TIM_DIER_UIE | TIM_DIER_CC1IE;
+    NVIC_SetPriority(TIM14_IRQn, SCHED_TIMER_IRQ_PRIORITY);
     NVIC_EnableIRQ(TIM14_IRQn);
 
     // enable counter
@@ -91,7 +92,7 @@ void _sched_timer_schedule(timer_t *task)
 	// an execution or need to update the compare register
 	if (sched_timer_due_soon(task, _sched_now())) {
 	    // task is ready to run immediately, no need to change compare registers
-	    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVCLR_Msk) | SCB_ICSR_PENDSVSET_Msk;
+	    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 	} else {
 	    update = 1;
 	}
@@ -133,7 +134,7 @@ void _sched_task_pending(task_t *task)
 	return;
 
     sched_task_list_add(task);
-    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVCLR_Msk) | SCB_ICSR_PENDSVSET_Msk;
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 }
 
 /**
@@ -305,7 +306,7 @@ void TIM14_IRQHandler()
 	if (scheduler.timer_head
 	    && sched_timer_due_soon(scheduler.timer_head, _sched_now())) {
 	    // a task is ready to run immediately, no need to set up compare register
-	    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVCLR_Msk) | SCB_ICSR_PENDSVSET_Msk;
+	    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 	} else {
 	    sched_timer_update();
 	}
@@ -372,7 +373,7 @@ void PendSV_Handler()
 
     // one of the re-schedules above may have triggered this IRQ again,
     // but we have processed all imminent tasks so no need
-    SCB->ICSR = (SCB->ICSR & ~SCB_ICSR_PENDSVSET_Msk) | SCB_ICSR_PENDSVCLR_Msk;
+    SCB->ICSR = SCB_ICSR_PENDSVCLR_Msk;
     sched_timer_update();
 
     exit_crit();
