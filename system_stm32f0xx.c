@@ -171,6 +171,7 @@ void SystemInit(void)
     /* Enable peripheral clocks */
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
     RCC->APB1ENR |= RCC_APB1ENR_TIM14EN;
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
 
     /* Stop timer counter when under debug. */
     RCC->APB2ENR |= RCC_APB2ENR_DBGMCUEN;

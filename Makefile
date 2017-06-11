@@ -10,7 +10,7 @@ LDFLAGS=-Wl,-Tstm32f030f4.ld -Wl,--gc-sections
 VPATH=$(LL_SRC)
 
 OBJECTS = startup_stm32f030x6.o system_stm32f0xx.o stm32f0xx_ll_gpio.o \
-	led.o scheduler.o assert_func.o
+	led.o scheduler.o assert_func.o console.o utils.o
 
 led.elf: $(OBJECTS)
 	$(LINK.c) -o $@ $^ -Wl,-Map=$@.map $(LDLIBS)
@@ -23,3 +23,5 @@ upload: led.elf
 
 # dependencies
 scheduler.o: scheduler.c scheduler.h utils.h
+console.o: console.c console.h utils.h
+utils.o: utils.h
