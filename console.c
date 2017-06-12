@@ -4,6 +4,8 @@
 #include <system_stm32f0xx.h>
 #include <stm32f0xx_ll_gpio.h>
 
+#define BAUD_RATE	115200
+
 void console_init()
 {
     gpio_set_af_mode(GPIOA, 9, LL_GPIO_AF_1);
@@ -12,12 +14,12 @@ void console_init()
     RCC->APB2RSTR |= RCC_APB2RSTR_USART1RST;
     RCC->APB2RSTR &= ~RCC_APB2RSTR_USART1RST;
 
-    // set baud rate 115200, oversampling by 16: fclk/baud rate, round it
+    // set baud rate, oversampling by 16: fclk/baud rate, round it
     USART1->CR1 &= ~USART_CR1_OVER8;
-    USART1->BRR = (2 * SystemCoreClock + 115200) / (2 * 115200);
+    USART1->BRR = (2 * SystemCoreClock + BAUD_RATE) / (2 * BAUD_RATE);
 
-    // 9 data bits, 1 stop bit
-    USART1->CR1 |= USART_CR1_M;
+    // 8 data bits, 1 stop bit
+    USART1->CR1 &= ~USART_CR1_M;
     USART1->CR2 &= ~USART_CR2_STOP_Msk;
 
     // no parity
@@ -26,8 +28,10 @@ void console_init()
     // no flow control
     USART1->CR3 &= ~(USART_CR3_CTSE | USART_CR3_RTSE);
 
-    // enable USART1 transmit only
+    // enable transmit mode
     USART1->CR1 |= USART_CR1_TE;
+
+    // enable USART1
     USART1->CR1 |= USART_CR1_UE;
 }
 
