@@ -17,7 +17,7 @@
 #define DMA_IRQ_PRIORITY	2
 
 // must be a power of 2
-#define CONSOLE_BUF_SIZE	16
+#define CONSOLE_BUF_SIZE	128
 #define CONSOLE_BUF_MASK	(CONSOLE_BUF_SIZE - 1)
 
 struct console_st {
