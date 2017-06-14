@@ -12,7 +12,9 @@
  *----------------------------------------------------------------------*/
 
 #define BAUD_RATE		115200
-#define DMA_IRQ_PRIORITY	3
+
+// IRQ priority must be higher than application tasks that can block
+#define DMA_IRQ_PRIORITY	2
 
 // must be a power of 2
 #define CONSOLE_BUF_SIZE	16
@@ -33,6 +35,7 @@ typedef volatile struct console_st	console_t;
 
 console_t console;
 
+static void _console_write_nb(const char *buf, int size);
 INLINE uint16_t console_get_space();
 static void console_check_dma();
 
@@ -90,29 +93,15 @@ void console_init()
 }
 
 // return 1 if successful, 0 if there was no buffer space available
-int console_write(const char *buf, int size)
+int console_write_nb(const char *buf, int size)
 {
     int rv = 0;
     crit_state_t crit_state;
     enter_crit_rec(&crit_state);
-      
+
     // check if we have enough buffer space
     if (console_get_space() >= size) {
-	// we may need to split the copy if adding to the end of the buffer
-	uint16_t n = min(CONSOLE_BUF_SIZE - console.tail, size);
-	memcpy((char *) console.buffer + console.tail, buf, n);
-	size -= n;
-	if (size > 0) {
-	    // copy the rest to the front of the buffer
-	    buf += n;
-	    n = size;
-	    console.tail = 0;
-	    memcpy((char *) console.buffer, buf, n);
-	}
-	console.tail += n;
-	console.tail &= CONSOLE_BUF_MASK;
-
-	console_check_dma();
+	_console_write_nb(buf, size);
 	rv = 1;
     }
     
@@ -121,15 +110,46 @@ int console_write(const char *buf, int size)
     return rv;
 }
 
-INLINE uint16_t console_get_space()
+void console_write(const char *buf, int size)
 {
     crit_state_t crit_state;
     enter_crit_rec(&crit_state);
+
+    // truncate long messages
+    size = min(size, CONSOLE_BUF_SIZE - 1);
     
-    uint16_t space = (console.head - console.tail - 1) & CONSOLE_BUF_MASK;
+    while (console_get_space() < size) {
+	exit_crit_rec(&crit_state);
+	// give a chance to higher-priority interrupts
+	enter_crit_rec(&crit_state);
+    }
+    _console_write_nb(buf, size);
 
     exit_crit_rec(&crit_state);
-    return space;
+}
+
+static void _console_write_nb(const char *buf, int size)
+{
+    // we may need to split the copy if adding to the end of the buffer
+    uint16_t n = min(CONSOLE_BUF_SIZE - console.tail, size);
+    memcpy((char *) console.buffer + console.tail, buf, n);
+    size -= n;
+    if (size > 0) {
+	// copy the rest to the front of the buffer
+	buf += n;
+	n = size;
+	console.tail = 0;
+	memcpy((char *) console.buffer, buf, n);
+    }
+    console.tail += n;
+    console.tail &= CONSOLE_BUF_MASK;
+
+    console_check_dma();
+}
+
+INLINE uint16_t console_get_space()
+{
+    return (console.head - console.tail - 1) & CONSOLE_BUF_MASK;
 }
 
 static void console_check_dma()
