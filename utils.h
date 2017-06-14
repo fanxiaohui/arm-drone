@@ -3,10 +3,20 @@
 #include <stm32f0xx.h>
 
 /*----------------------------------------------------------------------
- * General macros
+ * General macros/utilities
  *----------------------------------------------------------------------*/
 
 #define INLINE __attribute__((always_inline)) static inline
+
+INLINE int min(int a, int b)
+{
+    return a < b ? a : b;
+}
+
+INLINE int max(int a, int b)
+{
+    return a < b ? b : a;
+}
 
 /*----------------------------------------------------------------------
  * GPIO functions

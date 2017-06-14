@@ -37,7 +37,10 @@ static void toggle_pin2(timer_t *task, state_t state, uint32_t expiry)
 
 static void write_hello(timer_t *task, state_t state, uint32_t expiry)
 {
-    console_write("hello...\n", 9);
+    console_write("hello", 5);
+    console_write("678901234", 9);
+    console_write("\n", 1);
+    console_write("A", 1);
 }
 
 void main()
