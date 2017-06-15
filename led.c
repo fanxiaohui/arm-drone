@@ -6,16 +6,17 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 
-static timer_t timer1, timer2;
+static tim_task_t timer1, timer2;
 static task_t task1, task2;
 
-static void set_pin1(timer_t *task, state_t state, uint32_t expiry)
+static void set_pin1(tim_task_t *task, state_t state, uint32_t expiry)
 {
     GPIOA->ODR |= GPIO_ODR_1;
 }
 
-static void unset_pin1(timer_t *task, state_t state, uint32_t expiry)
+static void unset_pin1(tim_task_t *task, state_t state, uint32_t expiry)
 {
     GPIOA->ODR &= ~GPIO_ODR_1;
 }
@@ -30,20 +31,19 @@ static void unset_pin1_task(task_t *task)
     GPIOA->ODR &= ~GPIO_ODR_1;
 }
 
-static void toggle_pin2(timer_t *task, state_t state, uint32_t expiry)
+static void toggle_pin2(tim_task_t *task, state_t state, uint32_t expiry)
 {
     GPIOA->ODR ^= GPIO_ODR_2;
 }
 
-static void write_hello(timer_t *task, state_t state, uint32_t expiry)
+static void write_hello(tim_task_t *task, state_t state, uint32_t expiry)
 {
-    console_write_nb("hello", 5);
-    console_write_nb("678901234", 9);
-    console_write_nb("\n", 1);
-    console_write_nb("A", 1);
+    static double f = 0;
+    f += 0.5;
+    printf("hello: %.2f\n", f);
 }
 
-void main()
+int main()
 {
     console_init();
 

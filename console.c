@@ -185,3 +185,10 @@ void DMA1_Channel4_5_IRQHandler()
 
     exit_crit_rec(&crit_state);
 }
+
+// newlib syscall implementation
+int _write(int file, char *buf, int len)
+{
+    console_write(buf, len);
+    return len;
+}

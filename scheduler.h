@@ -14,8 +14,8 @@
  * Scheduler public interface
  *----------------------------------------------------------------------*/
 
-struct timer_st;
-typedef volatile struct timer_st timer_t;
+struct tim_task_st;
+typedef volatile struct tim_task_st tim_task_t;
 
 struct task_st;
 typedef volatile struct task_st task_t;
@@ -27,17 +27,17 @@ typedef enum {
     TASK_CANCELLED		// timer is in the cancelled queue
 } state_t;
 
-typedef void (*TimerFn)(timer_t *task, state_t prev_state, uint32_t expiry_time);
+typedef void (*TimerFn)(tim_task_t *task, state_t prev_state, uint32_t expiry_time);
 
-struct timer_st {
+struct tim_task_st {
     state_t	state;
 
-    timer_t	*next;		// linked list of tasks
+    tim_task_t	*next;		// linked list of tasks
     uint32_t	deadline;	// absolute deadline of next execution in timer
     				// clock ticks, updated after each execution
     uint32_t	interval;	// interval in timer clock ticks for repetitive tasks,
                                 // or 0 for one-off tasks
-    TimerFn	timer_fn;
+    TimerFn	tim_task_fn;
     void	*client_data;
 };
 
@@ -52,8 +52,8 @@ struct task_st {
 };
 
 struct scheduler_st {
-    timer_t	*timer_head;	 // sorted linked list of SCHEDULED timers, or NULL
-    timer_t	*cancelled_head; // non-sorted linked list of CANCELLED timers, or NULL
+    tim_task_t	*timer_head;	 // sorted linked list of SCHEDULED timers, or NULL
+    tim_task_t	*cancelled_head; // non-sorted linked list of CANCELLED timers, or NULL
     task_t	*task_tail;	 // FIFO circular list of SCHEDULED tasks, or NULL
     
     uint32_t	timer_offset;	 // current time at most recent TIMx->CNT overflow
@@ -64,11 +64,11 @@ typedef volatile struct scheduler_st scheduler_t;
 extern scheduler_t scheduler;
 
 extern void sched_init();
-extern void sched_timer_init(timer_t *task, TimerFn timer_fn, void *client_data);
-INLINE void sched_timer_schedule(timer_t *task, uint32_t deadline, uint32_t interval);
-INLINE void sched_timer_cancel(timer_t *task);
-extern void _sched_timer_schedule(timer_t *task);
-extern void _sched_timer_cancel(timer_t *task);
+extern void sched_timer_init(tim_task_t *task, TimerFn tim_task_fn, void *client_data);
+INLINE void sched_timer_schedule(tim_task_t *task, uint32_t deadline, uint32_t interval);
+INLINE void sched_timer_cancel(tim_task_t *task);
+extern void _sched_timer_schedule(tim_task_t *task);
+extern void _sched_timer_cancel(tim_task_t *task);
 extern void sched_task_init(task_t *task, TaskFn task_fn, void *client_data);
 INLINE void sched_task_pending(task_t *task);
 extern void _sched_task_pending(task_t *task);
@@ -80,7 +80,7 @@ INLINE uint32_t _sched_now();
  * Scheduler inline implementation
  *----------------------------------------------------------------------*/
 
-INLINE void sched_timer_schedule(timer_t *task, uint32_t deadline,
+INLINE void sched_timer_schedule(tim_task_t *task, uint32_t deadline,
 				       uint32_t interval)
 {
     crit_state_t crit_state;
@@ -93,7 +93,7 @@ INLINE void sched_timer_schedule(timer_t *task, uint32_t deadline,
     exit_crit_rec(&crit_state);
 }
 
-INLINE void sched_timer_cancel(timer_t *task)
+INLINE void sched_timer_cancel(tim_task_t *task)
 {
     crit_state_t crit_state;
     enter_crit_rec(&crit_state);
