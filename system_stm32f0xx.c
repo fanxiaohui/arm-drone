@@ -170,6 +170,7 @@ void SystemInit(void)
 
     /* Enable peripheral clocks */
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+    RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
     RCC->AHBENR |= RCC_AHBENR_DMAEN;
     RCC->APB1ENR |= RCC_APB1ENR_TIM14EN;
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;

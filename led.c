@@ -1,6 +1,7 @@
 
 #include "scheduler.h"
 #include "console.h"
+#include "exti.h"
 
 #include <stm32f0xx_ll_gpio.h>
 
@@ -46,6 +47,7 @@ static void write_hello(tim_task_t *task, state_t state, uint32_t expiry)
 int main()
 {
     console_init();
+    exti_init();
 
     gpio_set_mode(GPIOA, 1, LL_GPIO_MODE_OUTPUT);
     gpio_set_mode(GPIOA, 2, LL_GPIO_MODE_OUTPUT);
