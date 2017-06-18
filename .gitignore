@@ -1,5 +1,5 @@
 *.o
-led.elf*
+remote.elf*
 *.i
 *.s
 !startup*.s
