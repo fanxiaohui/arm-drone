@@ -75,6 +75,7 @@ extern void _sched_task_pending(task_t *task);
 
 INLINE uint32_t sched_now();
 INLINE uint32_t _sched_now();
+INLINE int sched_time_lte(uint32_t t1, uint32_t t2);
 
 /*----------------------------------------------------------------------
  * Scheduler inline implementation
@@ -144,4 +145,10 @@ INLINE uint32_t _sched_now()
     }
 
     return offset + cnt;
+}
+
+INLINE int sched_time_lte(uint32_t t1, uint32_t t2)
+{
+    // note that t1 and t2 wraps around after 2^32 - 1
+    return t2 - t1 <= 1u << 31;
 }

@@ -31,7 +31,6 @@ INLINE void sched_task_list_add(task_t *task);
 INLINE task_t *sched_task_list_pop();
 
 INLINE uint32_t sched_time_add(uint32_t t1, uint32_t t2);
-INLINE int sched_time_lte(uint32_t t1, uint32_t t2);
 INLINE int sched_timer_due_soon(tim_task_t *task, uint32_t now);
 
 void sched_init()
@@ -76,7 +75,7 @@ void _sched_timer_schedule(tim_task_t *task)
     int update = 0;
     if (task->state == TASK_SCHEDULED) {
 	// task is waiting in scheduled queue, remove and re-schedule
-	int update = scheduler.timer_head == task;
+	update = scheduler.timer_head == task;
 	sched_timer_list_remove(task);
     }
     
@@ -270,12 +269,6 @@ INLINE uint32_t sched_time_add(uint32_t t1, uint32_t t2)
 {
     // it is ok to overflow
     return t1 + t2;
-}
-
-INLINE int sched_time_lte(uint32_t t1, uint32_t t2)
-{
-    // note that t1 and t2 wraps around after 2^32 - 1
-    return t2 - t1 <= 1u << 31;
 }
 
 INLINE int sched_timer_due_soon(tim_task_t *task, uint32_t now)
