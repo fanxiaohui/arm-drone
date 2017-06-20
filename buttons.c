@@ -5,19 +5,31 @@
 
 #include <stm32f0xx_ll_gpio.h>
 #include <stdbool.h>
+#include <string.h>
+#include <stdio.h>
 
-static buttons_t buttons;
+// microseconds for which the button state must be stable before change is accepted
+#define BUTTON_DEBOUNCE_DELAY	20000
+
+#define	BUTTON_A_PIN	14
+#define	BUTTON_B_PIN	10
+#define	BUTTON_C_PIN	13
+#define	BUTTON_D_PIN	4
+
+static buttons_t buttons = {
+    .pins = { { .pin = BUTTON_A_PIN },
+	      { .pin = BUTTON_B_PIN },
+	      { .pin = BUTTON_C_PIN },
+	      { .pin = BUTTON_D_PIN }
+    }
+};
+	      
 static exti_irq_handler_t button_irq_handlers[NUM_BUTTONS];
 
 static void button_irq_handler(unsigned int irqn, void *button_pin);
 
 void buttons_init(button_cb_fn cb, void *client_data)
 {
-    buttons.pins[0].pin = BUTTON_A_PIN;
-    buttons.pins[1].pin = BUTTON_B_PIN;
-    buttons.pins[2].pin = BUTTON_C_PIN;
-    buttons.pins[3].pin = BUTTON_D_PIN;
-
     for (int i = 0; i < NUM_BUTTONS; ++i) {
 	// all buttons are connected to GPIOA
 	gpio_set_mode(GPIOA, buttons.pins[i].pin, LL_GPIO_MODE_INPUT);
@@ -39,17 +51,28 @@ void buttons_init(button_cb_fn cb, void *client_data)
 static void button_irq_handler(unsigned int irqn, void *client_data)
 {
     unsigned int pin = (unsigned int) client_data;
-    unsigned int pin_mask = 1 << pin;
+    unsigned int pin_state_mask = 1 << pin;		   // pin position in state fields
+    unsigned int pin_io_mask = 1 << buttons.pins[pin].pin; // pin position in GPIO register
     
-    uint32_t now = sched_now();
-    bool current_state = GPIOA->ODR & pin_mask;
-    if (current_state) {
-	buttons.pending_state |= pin_mask;
-    } else {
-	buttons.pending_state &= ~pin_mask;
-    }
+    // button is pressed when we read low
+    unsigned int pin_state = GPIOA->ODR & pin_io_mask ? 0 : pin_state_mask;
+    buttons.pending_state |= pin_state;
+    buttons.pending_state &= ~pin_state;
 
+    uint32_t now = sched_now();
+    // handle the case when the button was not pressed for a long time and the timer
+    // wrapper around
+    if (!sched_time_lte(buttons.pins[pin].irq_time, now)
+	|| sched_time_lte(buttons.pins[pin].irq_time + BUTTON_DEBOUNCE_DELAY, now)) {
+	if ((buttons.state & pin_state_mask) != pin_state) {
+	    buttons.state |= pin_state;
+	    buttons.state &= ~pin_state;
+	    printf("button: %d, new state: %d\n", pin, !!pin_state);
+	}
+    } else {
+	printf("button: %d, new state: %d, ignored as too quick: %lu micros\n",
+	       pin, !!pin_state, now - buttons.pins[pin].irq_time);
+    }
     
-    
-    // TBD
+    buttons.pins[pin].irq_time = now;
 }
