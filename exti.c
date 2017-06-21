@@ -78,8 +78,7 @@ void EXTI2_3_IRQHandler()
 
 void EXTI4_15_IRQHandler()
 {
-    for (unsigned int irq = 4; irq <= 15; ++irq) {
-	unsigned int irq_bit = 1 << irq;
+    for (unsigned int irq = 4, irq_bit = 1 << 4; irq <= 15; ++irq, irq_bit <<= 1) {
 	if (EXTI->PR & irq_bit) {
 	    EXTI->PR = irq_bit;
 	    exti_call_handlers(irq);
