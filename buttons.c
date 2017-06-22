@@ -88,7 +88,7 @@ static void button_irq_handler(unsigned int irqn, void *client_data)
     // (re-)schedule timer to see if the state change is stable only if the pending state
     // is different from the current state
     if ((buttons.pending_state & pin_state_mask) != (buttons.state & pin_state_mask)) {
-        sched_timer_schedule(&buttons.pins[pin].commit_state, BUTTON_DEBOUNCE_DELAY, 0);
+        sched_timer_schedule_rel(&buttons.pins[pin].commit_state, BUTTON_DEBOUNCE_DELAY, 0);
     } else {
         // we may have a timer pending
         sched_timer_cancel(&buttons.pins[pin].commit_state);

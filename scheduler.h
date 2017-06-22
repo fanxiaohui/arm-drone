@@ -65,7 +65,8 @@ extern scheduler_t scheduler;
 
 extern void sched_init();
 extern void sched_timer_init(tim_task_t *task, TimerFn tim_task_fn, void *client_data);
-INLINE void sched_timer_schedule(tim_task_t *task, uint32_t deadline, uint32_t interval);
+INLINE void sched_timer_schedule_at(tim_task_t *task, uint32_t deadline, uint32_t interval);
+INLINE void sched_timer_schedule_rel(tim_task_t *task, uint32_t delay, uint32_t interval);
 INLINE void sched_timer_cancel(tim_task_t *task);
 extern void _sched_timer_schedule(tim_task_t *task);
 extern void _sched_timer_cancel(tim_task_t *task);
@@ -81,13 +82,25 @@ INLINE int sched_time_lte(uint32_t t1, uint32_t t2);
  * Scheduler inline implementation
  *----------------------------------------------------------------------*/
 
-INLINE void sched_timer_schedule(tim_task_t *task, uint32_t deadline,
-				       uint32_t interval)
+INLINE void sched_timer_schedule_at(tim_task_t *task, uint32_t deadline,
+                                    uint32_t interval)
 {
     crit_state_t crit_state;
     enter_crit_rec(&crit_state);
 
     task->deadline = deadline;
+    task->interval = interval;
+    _sched_timer_schedule(task);
+
+    exit_crit_rec(&crit_state);
+}
+
+INLINE void sched_timer_schedule_rel(tim_task_t *task, uint32_t delay, uint32_t interval)
+{
+    crit_state_t crit_state;
+    enter_crit_rec(&crit_state);
+
+    task->deadline = _sched_now() + delay;
     task->interval = interval;
     _sched_timer_schedule(task);
 
