@@ -3,6 +3,8 @@
 #include "console.h"
 #include "exti.h"
 #include "buttons.h"
+#include "spi.h"
+#include "nrf24l01p.h"
 
 #include <stm32f0xx_ll_gpio.h>
 
@@ -12,6 +14,8 @@
 
 static tim_task_t timer1, timer2;
 static task_t task1, task2;
+
+static nrf24l_t nrf24l;
 
 /*
 static void set_pin1(tim_task_t *task, state_t state, uint32_t expiry)
@@ -51,8 +55,26 @@ int main()
     console_init();
     sched_init();
     exti_init();
+    spi_init();
     buttons_init(&button_changed, "callback");
 
+    // nRF24L01+ pin assignments:
+    // PA0 - IRQ
+    // PA1 - CE
+    // PA5 - SCK
+    // PA6 - MISO
+    // PA7 - MOSI
+    // PB1 - CSN, software NSS
+
+    // initialise NRF24L01 specific pins
+    nrf24l.irq_port = GPIOA;
+    nrf24l.irq_pin = 0;
+    nrf24l.ce_port = GPIOA;
+    nrf24l.ce_pin = 1;
+    nrf24l.nss.port = GPIOB;
+    nrf24l.nss.pin = 1;
+    nrf24l_init(&nrf24l);
+    
     while (1) {
 	__WFI();
     }

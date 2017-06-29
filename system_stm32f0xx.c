@@ -175,6 +175,7 @@ void SystemInit(void)
     RCC->APB1ENR |= RCC_APB1ENR_TIM14EN;
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+    RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 
     /* Stop timer counter when under debug. */
     RCC->APB2ENR |= RCC_APB2ENR_DBGMCUEN;

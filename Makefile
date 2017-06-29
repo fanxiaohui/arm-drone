@@ -10,7 +10,8 @@ LDFLAGS=-Wl,-Tstm32f030f4.ld -Wl,--gc-sections
 VPATH=$(LL_SRC)
 
 OBJECTS = startup_stm32f030x6.o system_stm32f0xx.o stm32f0xx_ll_gpio.o \
-	main.o scheduler.o assert_func.o console.o utils.o exti.o buttons.o
+	main.o scheduler.o assert_func.o console.o utils.o exti.o buttons.o spi.o \
+	nrf24l01p.c
 
 remote.elf: $(OBJECTS)
 	$(LINK.c) -o $@ $^ -Wl,-Map=$@.map $(LDLIBS)
@@ -28,3 +29,5 @@ console.o: console.c console.h utils.h
 utils.o: utils.c utils.h
 exti.o: exti.c utils.h scheduler.h exti.h
 buttons.o: buttons.c buttons.h scheduler.h exti.h utils.h
+spi.o: spi.c spi.h utils.h
+nrf24l01p.o: nrf24l01p.c nrfl2401p.h utils.h spi.h exti.h scheduler.h
