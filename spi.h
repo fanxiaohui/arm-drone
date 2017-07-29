@@ -45,13 +45,10 @@ INLINE void spi_end_trans(const spi_nss_t *nss)
 INLINE unsigned int spi_txrx_byte(unsigned int out)
 {
     while (!(SPI1->SR & SPI_SR_TXE));
-    SPI1->DR = out;
+    MMIO8(SPI1->DR) = out;
 
     while (!(SPI1->SR & SPI_SR_RXNE));
-    unsigned int in = SPI1->DR;
-
-    // wait until SPI is no longer busy
-    while (SPI1->SR & SPI_SR_BSY);
+    unsigned int in = MMIO8(SPI1->DR);
 
     return in;
 }

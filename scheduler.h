@@ -29,6 +29,7 @@ typedef enum {
 
 typedef void (*TimerFn)(tim_task_t *task, state_t prev_state, uint32_t expiry_time);
 
+// all times are in microseconds
 struct tim_task_st {
     state_t	state;
 
@@ -77,6 +78,7 @@ extern void _sched_task_pending(task_t *task);
 INLINE uint32_t sched_now();
 INLINE uint32_t _sched_now();
 INLINE int sched_time_lte(uint32_t t1, uint32_t t2);
+INLINE void sched_delay(uint32_t delay_micros);
 
 /*----------------------------------------------------------------------
  * Scheduler inline implementation
@@ -164,4 +166,12 @@ INLINE int sched_time_lte(uint32_t t1, uint32_t t2)
 {
     // note that t1 and t2 wraps around after 2^32 - 1
     return t2 - t1 <= 1u << 31;
+}
+
+INLINE void sched_delay(uint32_t delay_micros)
+{
+    // maximum delay is ~32 milliseconds
+    uint16_t now = (uint16_t) TIM14->CNT;
+    uint16_t deadline = now + delay_micros;
+    while ((uint16_t) (deadline - TIM14->CNT) <= (uint16_t) (1u << 15));
 }

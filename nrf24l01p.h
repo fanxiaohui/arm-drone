@@ -10,7 +10,9 @@ struct nrf24l_st {
     spi_nss_t		nss;
     unsigned char	irq_pin;
     unsigned char	ce_pin;
-    
+    uint16_t		payload_size;
+
+    // private fields
     exti_irq_handler_t	irq_handler;	// receives notifications on packet arrival
 };
 
@@ -30,15 +32,18 @@ typedef enum nrf24l_power_st nrf24l_power_t;
  * Public function declarations
  *----------------------------------------------------------------------*/
 
-extern void nrf24l_init(nrf24l_t *nrf24l);
+extern void nrf24l_init_ptx(nrf24l_t *nrf24l);
+extern void nrf24l_init_prx(nrf24l_t *nrf24l);
 
 // channel must be between 0 and 125 inclusive
 extern void nrf24l_set_rf_ch(nrf24l_t *nrf24l, unsigned int channel);
 
-// channel must be between 0 and 125 inclusive
 extern void nrf24l_set_rf_pwr(nrf24l_t *nrf24l, nrf24l_power_t power);
 
 // we use 4 byte addresses
 extern void nrf24l_set_tx_address(nrf24l_t *nrf24l, uint32_t addr);
 extern void nrf24l_set_rx_address(nrf24l_t *nrf24l, uint32_t addr);
+extern uint32_t nrf24l_get_tx_address(nrf24l_t *nrf24l);
+extern uint32_t nrf24l_get_rx_address(nrf24l_t *nrf24l);
 
+extern void nrf24l_send(nrf24l_t *nrf24l, void *payload);

@@ -8,6 +8,8 @@
 
 #define INLINE __attribute__((always_inline)) static inline
 
+#define MMIO8(register)		(*(volatile uint8_t *) &(register))
+
 INLINE int min(int a, int b)
 {
     return a < b ? a : b;
