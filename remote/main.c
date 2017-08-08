@@ -1,10 +1,11 @@
 
-#include "scheduler.h"
-#include "console.h"
-#include "exti.h"
 #include "buttons.h"
-#include "spi.h"
-#include "nrf24l01p.h"
+
+#include <os/scheduler.h>
+#include <os/console.h>
+#include <os/exti.h>
+#include <os/spi.h>
+#include <os/nrf24l01p.h>
 
 #include <stm32f0xx_ll_gpio.h>
 

@@ -11,7 +11,6 @@ void spi_init()
     RCC->APB2RSTR &= ~RCC_APB2RSTR_SPI1RST;
 
     // set up alternate functions for SP1 pins
-    // TBD: PA4 - SPI1_NSS (must be pulled high in case of software NSS)
     // PA5 - SPI1_SCK
     // PA6 - SPI1_MISO
     // PA7 - SPI1_MOSI

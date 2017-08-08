@@ -5,9 +5,9 @@ LL_SRC=$(STM32_ROOT)/Drivers/STM32F0xx_HAL_Driver/Src
 
 AS=arm-as
 CC=arm-gcc
-CFLAGS=-Wall -specs=nano.specs -specs=nosys.specs -DSTM32F030x6 -DHAVE_ASSERT_FUNC -mthumb -mcpu=cortex-m0 -ffunction-sections -fdata-sections -I$(STM32_ROOT)/Drivers/CMSIS/Include -I$(STM32_ROOT)/Drivers/CMSIS/Device/ST/STM32F0xx/Include -I$(LL_INC) -fverbose-asm -save-temps -finline-functions -ggdb3
+CFLAGS=-Wall -specs=nano.specs -specs=nosys.specs -DSTM32F030x6 -DHAVE_ASSERT_FUNC -mthumb -mcpu=cortex-m0 -ffunction-sections -fdata-sections -I$(STM32_ROOT)/Drivers/CMSIS/Include -I$(STM32_ROOT)/Drivers/CMSIS/Device/ST/STM32F0xx/Include -I$(LL_INC) -I.. -finline-functions -ggdb3 # -fverbose-asm -save-temps
 LDFLAGS=-Wl,-Tstm32f030f4.ld -Wl,--gc-sections
-VPATH=$(LL_SRC)
+VPATH=$(LL_SRC) ../os
 
 OBJECTS = startup_stm32f030x6.o system_stm32f0xx.o stm32f0xx_ll_gpio.o \
 	main.o scheduler.o assert_func.o console.o utils.o exti.o buttons.o spi.o \

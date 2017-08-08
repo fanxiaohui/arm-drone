@@ -1,7 +1,7 @@
 
 #include "buttons.h"
-#include "exti.h"
-#include "scheduler.h"
+#include <os/exti.h>
+#include <os/scheduler.h>
 
 #include <stm32f0xx_ll_gpio.h>
 #include <stdbool.h>
