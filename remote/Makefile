@@ -5,11 +5,11 @@ LL_SRC=$(STM32_ROOT)/Drivers/STM32F0xx_HAL_Driver/Src
 
 AS=arm-as
 CC=arm-gcc
-CFLAGS=-Wall -specs=nano.specs -specs=nosys.specs -DSTM32F030x6 -DHAVE_ASSERT_FUNC -mthumb -mcpu=cortex-m0 -ffunction-sections -fdata-sections -I$(STM32_ROOT)/Drivers/CMSIS/Include -I$(STM32_ROOT)/Drivers/CMSIS/Device/ST/STM32F0xx/Include -I$(LL_INC) -I.. -finline-functions -ggdb3 # -fverbose-asm -save-temps
+CFLAGS=-MMD -Wall -specs=nano.specs -specs=nosys.specs -DSTM32F030x6 -DHAVE_ASSERT_FUNC -mthumb -mcpu=cortex-m0 -ffunction-sections -fdata-sections -I$(STM32_ROOT)/Drivers/CMSIS/Include -I$(STM32_ROOT)/Drivers/CMSIS/Device/ST/STM32F0xx/Include -I$(LL_INC) -I.. -finline-functions -ggdb3 # -fverbose-asm -save-temps
 LDFLAGS=-Wl,-Tstm32f030f4.ld -Wl,--gc-sections
 VPATH=$(LL_SRC) ../os
 
-OBJECTS = startup_stm32f030x6.o system_stm32f0xx.o stm32f0xx_ll_gpio.o \
+OBJECTS = startup_stm32f030x6.o system_stm32f0xx.o \
 	main.o scheduler.o assert_func.o console.o utils.o exti.o buttons.o spi.o \
 	nrf24l01p.c
 
@@ -22,12 +22,7 @@ remote.bin: remote.elf
 upload: remote.elf
 	openocd -f openocd.cfg -c "program remote.elf verify reset exit"
 
-# dependencies
-main.o: main.c scheduler.h exti.h buttons.h
-scheduler.o: scheduler.c scheduler.h utils.h
-console.o: console.c console.h utils.h
-utils.o: utils.c utils.h
-exti.o: exti.c utils.h scheduler.h exti.h
-buttons.o: buttons.c buttons.h scheduler.h exti.h utils.h
-spi.o: spi.c spi.h utils.h
-nrf24l01p.o: nrf24l01p.c nrfl2401p.h utils.h spi.h exti.h scheduler.h
+clean:
+	-rm *.d *.o *.elf*
+
+include $(wildcard $(OBJECTS:.o=.d))
