@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stm32f0xx.h>
-
+#include "config.h"
 #include "utils.h"
 
 #define SCHED_TASK_PRIORITY		3

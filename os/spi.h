@@ -1,8 +1,7 @@
 #pragma once
 
+#include "config.h"
 #include "utils.h"
-
-#include <stm32f0xx.h>
 
 // data structure to store NSS software PIN details
 struct spi_nss_st {
