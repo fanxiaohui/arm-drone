@@ -285,9 +285,6 @@ void TIM14_IRQHandler()
 	// as well just before the overflow
 	TIM14->SR = ~TIM_SR_UIF;
 	scheduler.timer_offset += TIMER_RELOAD + 1;
-
-	GPIOA->ODR |= GPIO_ODR_2;
-	GPIOA->ODR &= ~GPIO_ODR_2;
     }
     
     if (TIM14->SR & TIM_SR_CC1IF) {
