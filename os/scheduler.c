@@ -41,21 +41,21 @@ void sched_init()
     NVIC_SetPriority(PendSV_IRQn, SCHED_TASK_PRIORITY);
     
     // initialise timer peripheral
-    TIM14->PSC = SystemCoreClock / 1000000 - 1;	 // 1MHz counter clock, 1 microsec period
-    TIM14->ARR = TIMER_RELOAD;	                 // ~65.5ms counter overflow
-    TIM14->CNT = 0;
-    TIM14->CCR1 = 0;		// no specific compare event required initially
+    TIM3->PSC = SystemCoreClock / 1000000 - 1;	 // 1MHz counter clock, 1 microsec period
+    TIM3->ARR = TIMER_RELOAD;	                 // ~65.5ms counter overflow
+    TIM3->CNT = 0;
+    TIM3->CCR1 = 0;		// no specific compare event required initially
 
     // channel is configured as output
-    TIM14->CCMR1 &= ~TIM_CCMR1_CC1S;
+    TIM3->CCMR1 &= ~TIM_CCMR1_CC1S;
 
     // enable compare and update interrupts
-    TIM14->DIER |= TIM_DIER_UIE | TIM_DIER_CC1IE;
-    NVIC_SetPriority(TIM14_IRQn, SCHED_TIMER_IRQ_PRIORITY);
-    NVIC_EnableIRQ(TIM14_IRQn);
+    TIM3->DIER |= TIM_DIER_UIE | TIM_DIER_CC1IE;
+    NVIC_SetPriority(TIM3_IRQn, SCHED_TIMER_IRQ_PRIORITY);
+    NVIC_EnableIRQ(TIM3_IRQn);
 
     // enable counter
-    TIM14->CR1 |= TIM_CR1_CEN;
+    TIM3->CR1 |= TIM_CR1_CEN;
 }
 
 void sched_timer_init(tim_task_t *task, TimerFn tim_task_fn, void *client_data)
@@ -150,8 +150,8 @@ INLINE void sched_timer_update()
 	}
     }
     // we assume that we have enough time to set up the next counter event 
-    TIM14->CCR1 = (uint16_t) next_cmp;
-    TIM14->SR = ~TIM_SR_CC1IF;
+    TIM3->CCR1 = (uint16_t) next_cmp;
+    TIM3->SR = ~TIM_SR_CC1IF;
 }
 
 INLINE void sched_timer_list_add(tim_task_t *task)
@@ -275,22 +275,22 @@ INLINE int sched_timer_due_soon(tim_task_t *task, uint32_t now)
     return sched_time_lte(task->deadline, sched_time_add(now, MIN_TIMER_DELAY));
 }
 
-void TIM14_IRQHandler()
+void TIM3_IRQHandler()
 {
     // note that the cost of this function can be around 30 microsecs
     enter_crit();
     
-    if (TIM14->SR & TIM_SR_UIF) {
+    if (TIM3->SR & TIM_SR_UIF) {
 	// clear update events, note that there may have been a compare event
 	// as well just before the overflow
-	TIM14->SR = ~TIM_SR_UIF;
+	TIM3->SR = ~TIM_SR_UIF;
 	scheduler.timer_offset += TIMER_RELOAD + 1;
     }
     
-    if (TIM14->SR & TIM_SR_CC1IF) {
+    if (TIM3->SR & TIM_SR_CC1IF) {
 	// clear counter compare event, we will set a new compare value later
-	TIM14->CCR1 = 0;
-	TIM14->SR = ~TIM_SR_CC1IF;
+	TIM3->CCR1 = 0;
+	TIM3->SR = ~TIM_SR_CC1IF;
     
 	if (scheduler.timer_head
 	    && sched_timer_due_soon(scheduler.timer_head, _sched_now())) {

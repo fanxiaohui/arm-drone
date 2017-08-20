@@ -151,10 +151,10 @@ INLINE uint32_t _sched_now()
     
     // we don't know if a counter overflow happened or not when sampling
     // the counter, so we may need to resample again in case of overflow
-    uint16_t cnt = (uint16_t) TIM14->CNT;
-    if (TIM14->SR & TIM_SR_UIF) {
+    uint16_t cnt = (uint16_t) TIM3->CNT;
+    if (TIM3->SR & TIM_SR_UIF) {
 	// there was an overflow and scheduler.timer_offset has not been updated yet
-	cnt = (uint16_t) TIM14->CNT;
+	cnt = (uint16_t) TIM3->CNT;
 	offset += TIMER_RELOAD + 1;
     }
 
@@ -170,7 +170,7 @@ INLINE int sched_time_lte(uint32_t t1, uint32_t t2)
 INLINE void sched_delay(uint32_t delay_micros)
 {
     // maximum delay is ~32 milliseconds
-    uint16_t now = (uint16_t) TIM14->CNT;
+    uint16_t now = (uint16_t) TIM3->CNT;
     uint16_t deadline = now + delay_micros;
-    while ((uint16_t) (deadline - TIM14->CNT) <= (uint16_t) (1u << 15));
+    while ((uint16_t) (deadline - TIM3->CNT) <= (uint16_t) (1u << 15));
 }

@@ -1,8 +1,6 @@
 
 #include "spi.h"
-#include "utils.h"
-
-#include <stm32f0xx_ll_gpio.h>
+#include "gpio.h"
 
 void spi_init()
 {
@@ -15,9 +13,9 @@ void spi_init()
     // PA6 - SPI1_MISO
     // PA7 - SPI1_MOSI
                   
-    gpio_set_af_mode(GPIOA, 5, LL_GPIO_AF_0);
-    gpio_set_af_mode(GPIOA, 6, LL_GPIO_AF_0);
-    gpio_set_af_mode(GPIOA, 7, LL_GPIO_AF_0);
+    gpio_set_af_mode(GPIOA, 5, GPIO_MODE_OUTPUT);
+    gpio_set_af_mode(GPIOA, 6, GPIO_MODE_INPUT);
+    gpio_set_af_mode(GPIOA, 7, GPIO_MODE_OUTPUT);
 
     // set up baud rate - PCLK/2
     SPI1->CR1 &= ~SPI_CR1_BR;
@@ -27,18 +25,14 @@ void spi_init()
     
     // set up master configuration
     SPI1->CR1 |= SPI_CR1_MSTR;
-    // set up 8 bit data size
-    SPI1->CR2 |= SPI_CR2_DS_2 | SPI_CR2_DS_1 | SPI_CR2_DS_0;
-    // report non-empty receive FIFO if there is at least one byte in buffer
-    SPI1->CR2 |= SPI_CR2_FRXTH;
-
+  
     // enable SPI
     SPI1->CR1 |= SPI_CR1_SPE;
 }
 
 void spi_nss_init(const spi_nss_t *nss)
 {
-    gpio_set_mode(nss->port, nss->pin, LL_GPIO_MODE_OUTPUT);
+    gpio_set_mode(nss->port, nss->pin, GPIO_MODE_OUTPUT);
 
     // idle state of NSS is high
     nss->port->ODR |= 1 << nss->pin;
@@ -54,7 +48,7 @@ void spi_tx_buf(const char *out, unsigned int out_size)
         while (!(SPI1->SR & SPI_SR_RXNE));
         
         // receive unused byte
-        unsigned char c =  MMIO8(SPI1->DR);
+        MMIO8(SPI1->DR);
     }
 
     // wait until SPI is no longer busy

@@ -6,15 +6,11 @@
 #include <os/exti.h>
 #include <os/spi.h>
 #include <os/nrf24l01p.h>
-
-#include <stm32f0xx_ll_gpio.h>
+#include <os/gpio.h>
 
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
-
-static tim_task_t timer1, timer2;
-static task_t task1, task2;
 
 static nrf24l_t nrf24l;
 
@@ -38,12 +34,13 @@ static void unset_pin1_task(task_t *task)
 {
     GPIOA->ODR &= ~GPIO_ODR_1;
 }
-
-static void toggle_pin2(tim_task_t *task, state_t state, uint32_t expiry)
-{
-    GPIOA->ODR ^= GPIO_ODR_2;
-}
 */
+
+static void toggle_pin(tim_task_t *task, state_t state, uint32_t expiry)
+{
+    printf("toggle pin\n");
+    GPIOA->ODR ^= 1 << 4;
+}
 
 static void button_changed(uint16_t changed, uint16_t state, void *client_data)
 {
@@ -68,6 +65,12 @@ int main()
     spi_init();
     // buttons_init(&button_changed, "callback");
 
+    // set up test PIN on PA5
+    gpio_set_mode(GPIOA, 4, GPIO_MODE_OUTPUT);
+    static tim_task_t pin_timer;
+    sched_timer_init(&pin_timer, &toggle_pin, NULL);
+    sched_timer_schedule_rel(&pin_timer, 0, 1000000);
+    
     // nRF24L01+ pin assignments:
     // PA0 - IRQ
     // PA1 - CE
@@ -79,6 +82,7 @@ int main()
     printf("starting...\n");
     
     // initialise NRF24L01 specific pins
+#if 0
     nrf24l.irq_port = GPIOA;
     nrf24l.irq_pin = 0;
     nrf24l.ce_port = GPIOA;
@@ -89,10 +93,11 @@ int main()
     nrf24l_init_ptx(&nrf24l);
     nrf24l_set_tx_address(&nrf24l, 0xAE058CB7);
     uint32_t addr = nrf24l_get_tx_address(&nrf24l);
-
+    
     tim_task_t sender;
     sched_timer_init(&sender, &send_payload, NULL);
     sched_timer_schedule_rel(&sender, 1000, 1000000);
+#endif
     
     while (1) {
 	__WFI();

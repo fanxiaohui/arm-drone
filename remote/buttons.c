@@ -2,8 +2,8 @@
 #include "buttons.h"
 #include <os/exti.h>
 #include <os/scheduler.h>
+#include <os/gpio.h>
 
-#include <stm32f0xx_ll_gpio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
@@ -54,7 +54,7 @@ void buttons_init(button_cb_fn cb, void *client_data)
     
     for (int i = 0; i < NUM_BUTTONS; ++i) {
 	// all buttons are connected to GPIOA
-	gpio_set_mode(GPIOA, buttons.pins[i].pin, LL_GPIO_MODE_INPUT);
+	gpio_set_mode(GPIOA, buttons.pins[i].pin, GPIO_MODE_INPUT);
 
 	// enable external interrupt for the current pin, client data is pin index
 	exti_irq_handler_init(&buttons.pins[i].irq_handler, &button_irq_handler, (void *) i);

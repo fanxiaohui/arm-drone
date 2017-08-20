@@ -21,13 +21,6 @@ INLINE int max(int a, int b)
 }
 
 /*----------------------------------------------------------------------
- * GPIO functions
- *----------------------------------------------------------------------*/
-
-extern void gpio_set_mode(GPIO_TypeDef *gpiox, uint32_t pin, uint32_t mode);
-extern void gpio_set_af_mode(GPIO_TypeDef *gpiox, uint32_t pin, uint32_t af_mode);
-
-/*----------------------------------------------------------------------
  * Interrupt functions
  *----------------------------------------------------------------------*/
 

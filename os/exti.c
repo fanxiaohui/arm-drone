@@ -10,18 +10,27 @@
 // list of irq handler registrations for each IRQ line
 static exti_irq_handler_t *volatile exti_irq_handlers[EXTI_LINES_NUM];
 
-static void exti_call_handlers(unsigned int irqn);
+INLINE void exti_check_handlers(unsigned int irqn);
 
 void exti_init()
 {
     // enable all interrupt handlers, individual lines will be enabled
     // by the user
-    NVIC_SetPriority(EXTI0_1_IRQn, SCHED_TASK_PRIORITY);
-    NVIC_SetPriority(EXTI2_3_IRQn, SCHED_TASK_PRIORITY);
-    NVIC_SetPriority(EXTI4_15_IRQn, SCHED_TASK_PRIORITY);
-    NVIC_EnableIRQ(EXTI0_1_IRQn);
-    NVIC_EnableIRQ(EXTI2_3_IRQn);
-    NVIC_EnableIRQ(EXTI4_15_IRQn);
+    NVIC_SetPriority(EXTI0_IRQn, SCHED_TASK_PRIORITY);
+    NVIC_SetPriority(EXTI1_IRQn, SCHED_TASK_PRIORITY);
+    NVIC_SetPriority(EXTI2_IRQn, SCHED_TASK_PRIORITY);
+    NVIC_SetPriority(EXTI3_IRQn, SCHED_TASK_PRIORITY);
+    NVIC_SetPriority(EXTI4_IRQn, SCHED_TASK_PRIORITY);
+    NVIC_SetPriority(EXTI9_5_IRQn, SCHED_TASK_PRIORITY);
+    NVIC_SetPriority(EXTI15_10_IRQn, SCHED_TASK_PRIORITY);
+
+    NVIC_EnableIRQ(EXTI0_IRQn);
+    NVIC_EnableIRQ(EXTI1_IRQn);
+    NVIC_EnableIRQ(EXTI2_IRQn);
+    NVIC_EnableIRQ(EXTI3_IRQn);
+    NVIC_EnableIRQ(EXTI4_IRQn);
+    NVIC_EnableIRQ(EXTI9_5_IRQn);
+    NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
 void exti_irq_handler_init(exti_irq_handler_t *handler,
@@ -45,8 +54,14 @@ void exti_register(exti_irq_handler_t *handler, unsigned int irqn)
     *prev = handler;
 }
 
-void exti_call_handlers(unsigned int irqn)
+INLINE void exti_check_handlers(unsigned int irqn)
 {
+    unsigned int pending_flag = 1 << irqn;
+    if (!(EXTI->PR & pending_flag))
+        return;
+    
+    EXTI->PR = pending_flag;
+    
     for (exti_irq_handler_t *handler = exti_irq_handlers[irqn];
 	 handler;
 	 handler = handler->next) {
@@ -54,34 +69,41 @@ void exti_call_handlers(unsigned int irqn)
     }
 }
 
-void EXTI0_1_IRQHandler()
+void EXTI0_IRQHandler()
 {
-    if (EXTI->PR & EXTI_PR_PR0) {
-	EXTI->PR = EXTI_PR_PR0;
-	exti_call_handlers(0);
-    } else if (EXTI->PR & EXTI_PR_PR1) {
-	EXTI->PR = EXTI_PR_PR1;
-	exti_call_handlers(1);
+    exti_check_handlers(0);
+}
+
+void EXTI1_IRQHandler()
+{
+    exti_check_handlers(1);
+}
+
+void EXTI2_IRQHandler()
+{
+    exti_check_handlers(2);
+}
+
+void EXTI3_IRQHandler()
+{
+    exti_check_handlers(3);
+}
+
+void EXTI4_IRQHandler()
+{
+    exti_check_handlers(4);
+}
+
+void EXTI9_5_IRQHandler()
+{
+    for (unsigned int irq = 5; irq <= 9; ++irq) {
+        exti_check_handlers(irq);
     }
 }
 
-void EXTI2_3_IRQHandler()
+void EXTI15_10_IRQHandler()
 {
-    if (EXTI->PR & EXTI_PR_PR2) {
-	EXTI->PR = EXTI_PR_PR2;
-	exti_call_handlers(2);
-    } else if (EXTI->PR & EXTI_PR_PR3) {
-	EXTI->PR = EXTI_PR_PR3;
-	exti_call_handlers(3);
-    }
-}
-
-void EXTI4_15_IRQHandler()
-{
-    for (unsigned int irq = 4, irq_bit = 1 << 4; irq <= 15; ++irq, irq_bit <<= 1) {
-	if (EXTI->PR & irq_bit) {
-	    EXTI->PR = irq_bit;
-	    exti_call_handlers(irq);
-	}
+    for (unsigned int irq = 10; irq <= 15; ++irq) {
+        exti_check_handlers(irq);
     }
 }

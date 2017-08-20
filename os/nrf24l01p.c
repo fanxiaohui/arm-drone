@@ -1,8 +1,8 @@
 
 #include "nrf24l01p.h"
 #include "exti.h"
+#include "gpio.h"
 
-#include <stm32f0xx_ll_gpio.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -103,8 +103,8 @@ void nrf24l_init_prx(nrf24l_t *nrf24l)
 
 void nrf24l_init(nrf24l_t *nrf24l)
 {
-    gpio_set_mode(nrf24l->irq_port, nrf24l->irq_pin, LL_GPIO_MODE_INPUT);
-    gpio_set_mode(nrf24l->ce_port, nrf24l->ce_pin, LL_GPIO_MODE_OUTPUT);
+    gpio_set_mode(nrf24l->irq_port, nrf24l->irq_pin, GPIO_MODE_INPUT);
+    gpio_set_mode(nrf24l->ce_port, nrf24l->ce_pin, GPIO_MODE_OUTPUT);
     
     spi_nss_init(&nrf24l->nss);
 

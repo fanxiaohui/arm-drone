@@ -10,17 +10,17 @@ LDFLAGS=-Wl,-Tstm32f103x8.ld -Wl,--gc-sections
 VPATH=$(LL_SRC) ../os
 
 OBJECTS = startup_stm32f103x8.o system_stm32f1xx.o \
-	main.o scheduler.o assert_func.o gpio.o console.o exti.o buttons.o spi.o \
-	nrf24l01p.c
+	main.o scheduler.o assert_func.o console.o utils.o exti.o buttons.o spi.o \
+	gpio_stm32f1xx.c nrf24l01p.c
 
-remote.elf: $(OBJECTS)
+controller.elf: $(OBJECTS)
 	$(LINK.c) -o $@ $^ -Wl,-Map=$@.map $(LDLIBS)
 
-remote.bin: remote.elf
+controller.bin: controller.elf
 	arm-objcopy -O binary $^ $@
 
-upload: remote.elf
-	openocd -f openocd.cfg -c "program remote.elf verify reset exit"
+upload: controller.elf
+	openocd -f openocd.cfg -c "program controller.elf verify reset exit"
 
 clean:
 	-rm *.d *.o *.elf*
